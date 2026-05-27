@@ -10,6 +10,23 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: eventi_test
+          MYSQL_USER: eventi
+          MYSQL_PASSWORD: eventi
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -uroot -proot"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=20
+    env:
+      TEST_DATABASE_URL: mysql+pymysql://eventi:eventi@127.0.0.1:3306/eventi_test
     steps:
       - uses: actions/checkout@v4
       - name: Install uv
@@ -20,6 +37,10 @@ jobs:
         run: uv sync --frozen
       - name: Lint
         run: uv run ruff check .
+      - name: Migrate test DB
+        run: uv run alembic upgrade head
+        env:
+          DATABASE_URL: mysql+pymysql://eventi:eventi@127.0.0.1:3306/eventi_test
       - name: Test
         run: uv run pytest -v
 

@@ -35,6 +35,31 @@ services:
     networks:
       - eventi
 
+  mysql:
+    image: mysql:8
+    profiles: ["dev"]
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: eventi_dev
+      MYSQL_USER: eventi
+      MYSQL_PASSWORD: eventi
+    command: ["--mysql-native-password=ON"]
+    ports:
+      - "127.0.0.1:3307:3306"
+    volumes:
+      - ./docker/mysql-init:/docker-entrypoint-initdb.d:ro
+      - mysql_dev_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - eventi
+
 networks:
   eventi:
     driver: bridge
+
+volumes:
+  mysql_dev_data:
