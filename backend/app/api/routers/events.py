@@ -9,7 +9,8 @@ from app.schemas.custom_field import CustomFieldOut, CustomFieldSet, OptionOut
 from app.schemas.event import (
     EventCreate, EventListItem, EventListResult, EventOut, EventTransition, EventUpdate,
 )
-from app.services import custom_field_service, event_service, rbac
+from app.schemas.visibility import VisibilityIn, VisibilityOut
+from app.services import custom_field_service, event_service, rbac, visibility_service
 
 router = APIRouter(prefix="/api/events", tags=["events"])
 
@@ -124,3 +125,19 @@ def put_fields(event_id: int, payload: CustomFieldSet, db: Session = Depends(get
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
     db.commit()
     return {"ok": True, "count": len(payload.fields)}
+
+
+@router.get("/{event_id}/visibility", response_model=VisibilityOut,
+            dependencies=[Depends(require_permission("events.read"))])
+def get_visibility(event_id: int, db: Session = Depends(get_db)) -> VisibilityOut:
+    mode, groups = visibility_service.get_visibility(db, event_id)
+    return VisibilityOut(mode=mode, groups=groups)
+
+
+@router.put("/{event_id}/visibility", response_model=VisibilityOut,
+            dependencies=[Depends(require_permission("events.write"))])
+def set_visibility(event_id: int, payload: VisibilityIn, db: Session = Depends(get_db)) -> VisibilityOut:
+    visibility_service.set_visibility(db, event_id, payload.mode, payload.groups)
+    db.commit()
+    mode, groups = visibility_service.get_visibility(db, event_id)
+    return VisibilityOut(mode=mode, groups=groups)
