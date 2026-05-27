@@ -3,6 +3,8 @@ services:
     build: ./backend
     expose:
       - "8000"
+    volumes:
+      - uploads_data:/data/uploads
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
       interval: 10s
@@ -63,3 +65,4 @@ networks:
 
 volumes:
   mysql_dev_data:
+  uploads_data:

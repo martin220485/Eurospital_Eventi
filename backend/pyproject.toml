@@ -15,6 +15,8 @@ dependencies = [
     "pydantic[email]>=2.5",
     "pydantic-settings>=2.5",
     "ldap3>=2.9",
+    "nh3>=0.2",
+    "python-multipart>=0.0.9",
 ]
 
 [dependency-groups]
