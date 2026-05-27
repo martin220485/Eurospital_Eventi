@@ -1,9 +1,30 @@
+import logging
+
 from fastapi import FastAPI
 
-from app.api.routers import auth
+from app.api.routers import auth, setup
+from app.core.config import get_settings
+
+logger = logging.getLogger("app.setup")
 
 app = FastAPI(title="Eurospital Eventi API")
 app.include_router(auth.router)
+app.include_router(setup.router)
+
+
+@app.on_event("startup")
+def _log_setup_token() -> None:
+    # Surface the bootstrap token once on boot so the operator can open /setup.
+    # Skipped when setup is already complete to avoid leaking it in steady state.
+    from app.db.session import SessionLocal
+    from app.services import settings_service
+
+    db = SessionLocal()
+    try:
+        if not settings_service.get_platform(db).setup_completed:
+            logger.warning("SETUP TOKEN: %s", get_settings().setup_token)
+    finally:
+        db.close()
 
 
 @app.get("/api/health")
