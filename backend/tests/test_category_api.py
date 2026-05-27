@@ -36,3 +36,18 @@ def test_duplicate_name_409(client, db):
     client.post("/api/categories", json={"name": "Dup"})
     r = client.post("/api/categories", json={"name": "Dup"})
     assert r.status_code == 409
+
+
+def test_delete_category_in_use_409(client, db):
+    from datetime import datetime, timedelta
+
+    _admin_cookie(client, db)
+    cid = client.post("/api/categories", json={"name": "Used"}).json()["id"]
+    start = datetime(2030, 1, 1, 9, 0)
+    client.post("/api/events", json={
+        "title": "E", "start_at": start.isoformat(),
+        "end_at": (start + timedelta(hours=1)).isoformat(), "mode": "physical",
+        "category_id": cid,
+    })
+    r = client.delete(f"/api/categories/{cid}")
+    assert r.status_code == 409
