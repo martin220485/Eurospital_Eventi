@@ -2,7 +2,7 @@ import logging
 
 from fastapi import FastAPI
 
-from app.api.routers import auth, categories, setup
+from app.api.routers import auth, categories, events, setup
 from app.core.config import get_settings
 
 logger = logging.getLogger("app.setup")
@@ -11,6 +11,7 @@ app = FastAPI(title="Eurospital Eventi API")
 app.include_router(auth.router)
 app.include_router(setup.router)
 app.include_router(categories.router)
+app.include_router(events.router)
 
 
 @app.on_event("startup")
