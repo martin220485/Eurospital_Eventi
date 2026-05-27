@@ -5,10 +5,11 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db, require_permission
 from app.models import User
+from app.schemas.custom_field import CustomFieldOut, CustomFieldSet, OptionOut
 from app.schemas.event import (
     EventCreate, EventListItem, EventListResult, EventOut, EventTransition, EventUpdate,
 )
-from app.services import event_service, rbac
+from app.services import custom_field_service, event_service, rbac
 
 router = APIRouter(prefix="/api/events", tags=["events"])
 
@@ -97,3 +98,29 @@ def duplicate_event(event_id: int, db: Session = Depends(get_db),
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Evento non trovato")
     db.commit()
     return EventOut.model_validate(ev)
+
+
+@router.get("/{event_id}/fields", response_model=list[CustomFieldOut],
+            dependencies=[Depends(require_permission("events.read"))])
+def get_fields(event_id: int, db: Session = Depends(get_db)) -> list[CustomFieldOut]:
+    out = []
+    for f in custom_field_service.get_fields(db, event_id):
+        opts = [OptionOut(label=o.label, value=o.value, position=o.position)
+                for o in custom_field_service.get_options(db, f.id)]
+        out.append(CustomFieldOut(
+            id=f.id, label=f.label, field_type=f.field_type, required=f.required,
+            placeholder=f.placeholder, default_value=f.default_value, validation=f.validation,
+            position=f.position, options=opts,
+        ))
+    return out
+
+
+@router.put("/{event_id}/fields", status_code=status.HTTP_200_OK,
+            dependencies=[Depends(require_permission("events.write"))])
+def put_fields(event_id: int, payload: CustomFieldSet, db: Session = Depends(get_db)) -> dict:
+    try:
+        custom_field_service.replace_set(db, event_id, payload.fields)
+    except custom_field_service.CustomFieldError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+    db.commit()
+    return {"ok": True, "count": len(payload.fields)}
