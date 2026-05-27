@@ -50,7 +50,8 @@ def require_permission(code: str) -> Callable[..., User]:
 
 
 def require_setup_open(db: Session = Depends(get_db)) -> None:
-    if settings_service.get_platform(db).setup_completed:
+    completed, _ = settings_service.setup_state(db)
+    if completed:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="Setup already completed"
         )

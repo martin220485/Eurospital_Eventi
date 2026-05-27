@@ -1,9 +1,25 @@
+from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.orm import Session
 
 from app.core.crypto import decrypt, encrypt
 from app.models import LdapSettings, PlatformSettings, SmtpSettings
 
 _MASK = "****"
+
+
+def setup_state(db: Session) -> tuple[bool, int]:
+    """Return (setup_completed, current_step) safely on a not-yet-migrated DB.
+
+    The wizard's migrate step is what creates `platform_settings`; `/status`
+    and the setup gating run before that, so a missing table means setup has
+    not started yet (open, step 0) rather than an error.
+    """
+    try:
+        p = get_platform(db)
+        return p.setup_completed, p.setup_step
+    except (OperationalError, ProgrammingError):
+        db.rollback()
+        return False, 0
 
 
 def get_platform(db: Session) -> PlatformSettings:

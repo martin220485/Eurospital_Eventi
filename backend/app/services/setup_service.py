@@ -14,8 +14,8 @@ class SetupError(Exception):
 
 
 def status(db: Session) -> dict:
-    p = settings_service.get_platform(db)
-    return {"setup_completed": p.setup_completed, "current_step": p.setup_step}
+    completed, step = settings_service.setup_state(db)
+    return {"setup_completed": completed, "current_step": step}
 
 
 def set_step(db: Session, step: int) -> None:

@@ -21,7 +21,8 @@ def _log_setup_token() -> None:
 
     db = SessionLocal()
     try:
-        if not settings_service.get_platform(db).setup_completed:
+        completed, _ = settings_service.setup_state(db)
+        if not completed:
             logger.warning("SETUP TOKEN: %s", get_settings().setup_token)
     finally:
         db.close()

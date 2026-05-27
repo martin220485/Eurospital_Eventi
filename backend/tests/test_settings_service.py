@@ -1,4 +1,21 @@
+from sqlalchemy.exc import ProgrammingError
+
 from app.services import settings_service
+
+
+def test_setup_state_returns_row_values(db):
+    settings_service.save_platform(db, setup_step=3)
+    assert settings_service.setup_state(db) == (False, 3)
+
+
+def test_setup_state_tolerates_missing_table(db, monkeypatch):
+    # On a fresh RBAC-only deploy, platform_settings does not exist until the
+    # wizard's migrate step. setup_state must treat that as "setup not started".
+    def boom(_db):
+        raise ProgrammingError("SELECT", {}, Exception("1146 table doesn't exist"))
+
+    monkeypatch.setattr(settings_service, "get_platform", boom)
+    assert settings_service.setup_state(db) == (False, 0)
 
 
 def test_platform_singleton_autocreated(db):
