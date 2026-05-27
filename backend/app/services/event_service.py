@@ -3,7 +3,7 @@ from datetime import datetime
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models import Event
+from app.models import Event, EventCustomField, EventCustomFieldOption, EventVisibility
 from app.services.html_sanitize import sanitize_html
 
 
@@ -75,3 +75,74 @@ def list_events(
     total = db.scalar(count_stmt) or 0
     stmt = stmt.order_by(Event.start_at.desc()).offset((page - 1) * page_size).limit(page_size)
     return list(db.scalars(stmt)), total
+
+
+_TRANSITIONS = {
+    "draft": {"published", "archived"},
+    "published": {"suspended", "cancelled", "archived"},
+    "suspended": {"published", "cancelled", "archived"},
+    "cancelled": {"archived"},
+    "archived": set(),
+}
+
+
+def _validate_publishable(ev: Event) -> None:
+    if not ev.title or not ev.title.strip():
+        raise EventError("title required to publish")
+    if ev.end_at <= ev.start_at:
+        raise EventError("end_at must be after start_at")
+    if ev.registration_open_at and ev.registration_close_at:
+        if ev.registration_close_at < ev.registration_open_at:
+            raise EventError("registration window invalid")
+        if ev.registration_close_at > ev.start_at:
+            raise EventError("registration must close before start")
+
+
+def transition(db: Session, event_id: int, target: str, *, can_publish: bool) -> Event:
+    ev = get(db, event_id)
+    allowed = _TRANSITIONS.get(ev.status, set())
+    if target not in allowed:
+        raise EventError(f"illegal transition {ev.status} -> {target}")
+    if target == "published":
+        if not can_publish:
+            raise EventError("missing events.publish permission")
+        _validate_publishable(ev)
+    ev.status = target
+    db.flush()
+    return ev
+
+
+def duplicate(db: Session, event_id: int, *, created_by: int | None) -> Event:
+    src = get(db, event_id)
+    cols = {
+        c: getattr(src, c) for c in (
+            "short_description", "description", "category_id", "mode", "location_name",
+            "address", "online_url", "start_at", "end_at", "registration_open_at",
+            "registration_close_at", "capacity", "waitlist_enabled", "max_per_user",
+            "cancellation_allowed", "cancellation_deadline_at", "reminder_config", "internal_notes",
+        )
+    }
+    dup = Event(title=f"{src.title} (copia)", status="draft", created_by=created_by, **cols)
+    db.add(dup)
+    db.flush()
+    src_fields = db.scalars(
+        select(EventCustomField).where(EventCustomField.event_id == src.id)
+    ).all()
+    for f in src_fields:
+        nf = EventCustomField(
+            event_id=dup.id, label=f.label, field_type=f.field_type, required=f.required,
+            placeholder=f.placeholder, default_value=f.default_value, validation=f.validation,
+            position=f.position,
+        )
+        db.add(nf)
+        db.flush()
+        opts = db.scalars(
+            select(EventCustomFieldOption).where(EventCustomFieldOption.field_id == f.id)
+        ).all()
+        for o in opts:
+            db.add(EventCustomFieldOption(field_id=nf.id, label=o.label, value=o.value, position=o.position))
+    vis = db.scalars(select(EventVisibility).where(EventVisibility.event_id == src.id)).all()
+    for v in vis:
+        db.add(EventVisibility(event_id=dup.id, mode=v.mode, dept_or_group=v.dept_or_group))
+    db.flush()
+    return dup
