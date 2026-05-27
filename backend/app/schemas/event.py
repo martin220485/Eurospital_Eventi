@@ -72,6 +72,7 @@ class EventOut(BaseModel):
     cancellation_deadline_at: datetime | None = None
     reminder_config: dict
     internal_notes: str | None = None
+    attachments: list = []
 
 
 class EventListItem(BaseModel):

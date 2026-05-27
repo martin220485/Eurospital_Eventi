@@ -38,10 +38,15 @@ def list_events(
 
 @router.get("/{event_id}", response_model=EventOut, dependencies=[Depends(require_permission("events.read"))])
 def get_event(event_id: int, db: Session = Depends(get_db)) -> EventOut:
+    from app.services import attachment_service
+    from app.schemas.attachment import AttachmentOut
     try:
-        return EventOut.model_validate(event_service.get(db, event_id))
+        ev = event_service.get(db, event_id)
     except event_service.EventError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Evento non trovato")
+    out = EventOut.model_validate(ev)
+    out.attachments = [AttachmentOut.model_validate(a) for a in attachment_service.list_for_event(db, event_id)]
+    return out
 
 
 @router.post("", response_model=EventOut, status_code=status.HTTP_201_CREATED,
