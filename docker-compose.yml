@@ -1,0 +1,40 @@
+services:
+  backend:
+    build: ./backend
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - eventi
+
+  frontend:
+    build: ./frontend
+    environment:
+      BACKEND_INTERNAL_URL: http://backend:8000
+    expose:
+      - "3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - eventi
+
+  nginx:
+    image: nginx:alpine
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "${PROXY_HOST_PORT:-8080}:8080"
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - eventi
+
+networks:
+  eventi:
+    driver: bridge
