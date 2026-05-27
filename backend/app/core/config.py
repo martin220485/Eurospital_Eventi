@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     database_url: str | None = None
     test_database_url: str | None = None
 
-    jwt_secret: str = "dev-insecure-change-me"
+    jwt_secret: str = "dev-insecure-change-me-please-set-a-real-secret"
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 7
 
