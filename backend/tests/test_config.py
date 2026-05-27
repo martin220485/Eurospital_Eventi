@@ -23,3 +23,11 @@ def test_setup_token_has_default():
 
     s = Settings()
     assert s.setup_token  # non-empty string default
+
+
+def test_upload_settings_defaults():
+    from app.core.config import Settings
+
+    s = Settings()
+    assert s.upload_dir
+    assert s.max_upload_bytes > 0

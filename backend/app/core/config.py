@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     app_secret_key: str = "dev-insecure-change-me"
     setup_token: str = "dev-setup-token-change-me"
 
+    upload_dir: str = "/data/uploads"
+    max_upload_bytes: int = 10 * 1024 * 1024
+
     @property
     def sqlalchemy_url(self) -> str:
         if self.database_url:
