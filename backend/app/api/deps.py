@@ -1,6 +1,6 @@
 from collections.abc import Callable, Generator
 
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Cookie, Depends, Header, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
@@ -10,7 +10,7 @@ from app.db.session import SessionLocal
 from app.models import User
 from app.services import rbac, settings_service
 
-_bearer = HTTPBearer(auto_error=True)
+_bearer = HTTPBearer(auto_error=False)
 
 
 def get_db() -> Generator[Session, None, None]:
@@ -21,12 +21,25 @@ def get_db() -> Generator[Session, None, None]:
         db.close()
 
 
+def _extract_token(
+    creds: HTTPAuthorizationCredentials | None,
+    access_cookie: str | None,
+) -> str | None:
+    if creds is not None:
+        return creds.credentials
+    return access_cookie
+
+
 def get_current_user(
-    creds: HTTPAuthorizationCredentials = Depends(_bearer),
+    creds: HTTPAuthorizationCredentials | None = Depends(_bearer),
+    access_token: str | None = Cookie(default=None),
     db: Session = Depends(get_db),
 ) -> User:
+    token = _extract_token(creds, access_token)
+    if not token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token mancante")
     try:
-        payload = decode_token(creds.credentials)
+        payload = decode_token(token)
     except TokenError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token non valido")
     if payload.get("type") != "access":
