@@ -1,4 +1,10 @@
 from app.models.associations import role_permissions, user_roles
+from app.models.attachment import Attachment
+from app.models.event import Event
+from app.models.event_category import EventCategory
+from app.models.event_custom_field import EventCustomField
+from app.models.event_custom_field_option import EventCustomFieldOption
+from app.models.event_visibility import EventVisibility
 from app.models.ldap_settings import LdapSettings
 from app.models.permission import Permission
 from app.models.platform_settings import PlatformSettings
@@ -17,4 +23,10 @@ __all__ = [
     "LdapSettings",
     "user_roles",
     "role_permissions",
+    "Event",
+    "EventCategory",
+    "EventCustomField",
+    "EventCustomFieldOption",
+    "Attachment",
+    "EventVisibility",
 ]
