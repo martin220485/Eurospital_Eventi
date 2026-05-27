@@ -46,6 +46,15 @@ iscrizioni, impostazioni) e il primo amministratore si creano dal wizard.
 > Il `SETUP_TOKEN` si imposta in `.env`; in mancanza usa un default di sviluppo non sicuro.
 > Fallback di emergenza per creare un admin senza wizard: `python -m app.cli create-admin`.
 
+## Area amministrativa (F3)
+Dopo il setup, l'admin accede da `/login` con le credenziali del super_admin.
+Da `/admin` gestisce:
+- **Categorie**: CRUD.
+- **Eventi**: creazione/modifica con tutti i parametri, stati (bozza→pubblicato→sospeso/annullato→archiviato), duplica.
+- **Campi custom** (form builder), **Allegati** (banner + file su volume `/data/uploads`), **Visibilità** (tutti / reparti-gruppi).
+
+Sessione via cookie httpOnly (route handler Next `/api/session/*`); i file caricati risiedono sul volume `uploads_data`.
+
 ## Test
 - Backend: `cd backend && TEST_DATABASE_URL=mysql+pymysql://eventi:eventi@127.0.0.1:3307/eventi_test uv run pytest`
 - Frontend: `cd frontend && pnpm test && pnpm build`
