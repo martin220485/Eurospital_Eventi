@@ -6,5 +6,6 @@ def test_all_tables_created(engine):
     expected = {
         "users", "roles", "permissions", "role_permissions",
         "user_roles", "refresh_tokens", "alembic_version",
+        "platform_settings", "smtp_settings", "ldap_settings",
     }
     assert expected.issubset(tables)
