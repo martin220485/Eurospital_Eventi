@@ -29,9 +29,26 @@ Frontend:
 cd frontend && pnpm install && pnpm dev
 ```
 
+## Prima configurazione (setup wizard)
+Al primo avvio la piattaforma parte non configurata: lo schema applicativo (eventi,
+iscrizioni, impostazioni) e il primo amministratore si creano dal wizard.
+
+1. Avvia lo stack: `docker compose up -d`.
+2. Leggi il `SETUP TOKEN` dai log del backend (loggato a ogni avvio finché il setup non è completo):
+   `docker compose logs backend | grep "SETUP TOKEN"`.
+3. Apri `https://eventi.eurospital.it/setup`.
+4. Inserisci il token, testa la connessione al MySQL esterno, crea lo schema (applica le
+   migrazioni), crea l'amministratore (`super_admin`).
+5. SMTP, AD/SSO e configurazione base sono opzionali ("Configura dopo"): si impostano poi dal backoffice.
+6. Al termine il wizard si blocca (gli endpoint `/api/setup/*` rispondono `409`) e la
+   piattaforma reindirizza al login.
+
+> Il `SETUP_TOKEN` si imposta in `.env`; in mancanza usa un default di sviluppo non sicuro.
+> Fallback di emergenza per creare un admin senza wizard: `python -m app.cli create-admin`.
+
 ## Test
-- Backend: `cd backend && uv run pytest`
-- Frontend: `cd frontend && pnpm lint && pnpm build`
+- Backend: `cd backend && TEST_DATABASE_URL=mysql+pymysql://eventi:eventi@127.0.0.1:3307/eventi_test uv run pytest`
+- Frontend: `cd frontend && pnpm test && pnpm build`
 
 ## Note infrastruttura
 - F0 non usa MySQL/redis/worker: solo frontend + backend + nginx.
