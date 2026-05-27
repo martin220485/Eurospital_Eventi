@@ -16,3 +16,10 @@ def test_sqlalchemy_url_built_from_components():
 def test_explicit_database_url_overrides_components():
     s = Settings(database_url="mysql+pymysql://x:y@h:3306/d")
     assert s.sqlalchemy_url == "mysql+pymysql://x:y@h:3306/d"
+
+
+def test_setup_token_has_default():
+    from app.core.config import Settings
+
+    s = Settings()
+    assert s.setup_token  # non-empty string default

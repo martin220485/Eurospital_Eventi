@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     refresh_token_expire_days: int = 7
 
     app_secret_key: str = "dev-insecure-change-me"
+    setup_token: str = "dev-setup-token-change-me"
 
     @property
     def sqlalchemy_url(self) -> str:
