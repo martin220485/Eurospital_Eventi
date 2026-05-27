@@ -101,9 +101,19 @@ def test_ldap(*, server_uri: str, bind_dn: str, bind_pw: str) -> dict:
         return {"ok": False, "error": str(exc)}
 
 
+def db_at_head(db: Session) -> bool:
+    cfg = Config("alembic.ini")
+    cfg.set_main_option("sqlalchemy.url", get_settings().sqlalchemy_url)
+    head = ScriptDirectory.from_config(cfg).get_current_head()
+    current = db.execute(text("SELECT version_num FROM alembic_version")).scalar()
+    return current == head
+
+
 def complete(db: Session) -> None:
     if not super_admin_exists(db):
         raise SetupError("Cannot complete setup: no super_admin")
+    if not db_at_head(db):
+        raise SetupError("Cannot complete setup: database not at head revision")
     p = settings_service.get_platform(db)
     p.setup_completed = True
     p.setup_step = 10

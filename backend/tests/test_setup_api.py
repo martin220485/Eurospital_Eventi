@@ -40,3 +40,23 @@ def test_save_smtp_masks_password(client):
     )
     assert r.status_code == 200
     assert r.json()["password"] == "****"
+
+
+def test_smtp_test_unreachable_returns_error(client):
+    r = client.post(
+        "/api/setup/smtp/test",
+        headers=TOKEN,
+        json={"host": "127.0.0.1", "port": 59999, "from_address": "a@x.it"},
+    )
+    assert r.status_code == 200
+    assert r.json()["ok"] is False
+
+
+def test_ad_test_unreachable_returns_error(client):
+    r = client.post(
+        "/api/setup/ad/test",
+        headers=TOKEN,
+        json={"server_uri": "ldap://127.0.0.1:59999", "bind_dn": "cn=x", "bind_pw": "y"},
+    )
+    assert r.status_code == 200
+    assert r.json()["ok"] is False

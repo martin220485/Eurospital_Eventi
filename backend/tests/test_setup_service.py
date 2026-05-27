@@ -36,3 +36,16 @@ def test_complete_requires_admin(db):
     )
     setup_service.complete(db)
     assert settings_service.get_platform(db).setup_completed is True
+
+
+def test_complete_requires_db_at_head(db):
+    import pytest
+    from sqlalchemy import text
+
+    setup_service.create_first_admin(
+        db, email="admin@x.it", username="admin", password="StrongPass1!"
+    )
+    # simulate a DB not migrated to head
+    db.execute(text("UPDATE alembic_version SET version_num='0001'"))
+    with pytest.raises(setup_service.SetupError):
+        setup_service.complete(db)

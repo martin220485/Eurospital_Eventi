@@ -24,7 +24,7 @@ export default function SetupPage() {
   const [token, setToken] = useState("");
 
   useEffect(() => {
-    setupApi.status().then((s) => setStep(s.current_step)).catch(() => {});
+    setupApi.status().then((s) => setStep(Math.min(s.current_step, 9))).catch(() => {});
   }, []);
 
   const next = () => setStep((s) => Math.min(s + 1, 9));
