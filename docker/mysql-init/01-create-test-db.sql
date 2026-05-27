@@ -1,0 +1,3 @@
+CREATE DATABASE IF NOT EXISTS eventi_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+GRANT ALL PRIVILEGES ON eventi_test.* TO 'eventi'@'%';
+FLUSH PRIVILEGES;
