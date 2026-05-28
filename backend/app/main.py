@@ -1,16 +1,41 @@
 import logging
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 
 from app.api.routers import (
-    attachments, auth, catalog, categories, checkin, events, ldap, notifications, registrations,
-    reports, setup,
+    attachments, auth, catalog, categories, checkin, events, ldap, me, notifications,
+    registrations, reports, setup, users,
 )
 from app.core.config import get_settings
+from app.core.security_headers import RateLimitMiddleware, SecurityHeadersMiddleware
 
 logger = logging.getLogger("app.setup")
 
+
+def _build_redis():
+    try:
+        import redis
+        return redis.Redis.from_url(get_settings().redis_url, socket_timeout=2)
+    except Exception:
+        return None
+
+
+def _login_identifier(req: Request) -> str:
+    return "auth"  # request body parsed by router; key by IP only (avoids reading body twice)
+
+
 app = FastAPI(title="Eurospital Eventi API")
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(
+    RateLimitMiddleware,
+    redis_client=_build_redis(),
+    max_count=get_settings().rate_limit_auth_max,
+    window_seconds=get_settings().rate_limit_auth_window,
+    paths=[
+        ("/api/auth/login", _login_identifier),
+        ("/api/auth/refresh", _login_identifier),
+    ],
+)
 app.include_router(auth.router)
 app.include_router(setup.router)
 app.include_router(categories.router)
@@ -22,6 +47,8 @@ app.include_router(catalog.router)
 app.include_router(notifications.router)
 app.include_router(reports.router)
 app.include_router(ldap.router)
+app.include_router(me.router)
+app.include_router(users.router)
 
 
 @app.on_event("startup")

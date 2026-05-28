@@ -80,6 +80,22 @@ def test_users_ldap_sync_permission_seeded(engine):
     assert row is not None
 
 
+def test_audit_logs_table_created(engine):
+    tables = set(inspect(engine).get_table_names())
+    assert "audit_logs" in tables
+
+
+def test_users_admin_permission_seeded(engine):
+    with engine.connect() as c:
+        row = c.execute(text(
+            "SELECT 1 FROM permissions p "
+            "JOIN role_permissions rp ON rp.permission_id = p.id "
+            "JOIN roles r ON r.id = rp.role_id "
+            "WHERE p.code = 'users.admin' AND r.name = 'super_admin'"
+        )).first()
+    assert row is not None
+
+
 def test_reports_read_permission_seeded(engine):
     with engine.connect() as c:
         row = c.execute(text(

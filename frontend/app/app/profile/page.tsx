@@ -43,6 +43,15 @@ export default function ProfilePage() {
         {msg && <p className="text-sm text-green-700">{msg}</p>}
         <button className="rounded bg-blue-600 px-4 py-2 text-white" onClick={changePassword}>Aggiorna password</button>
       </section>
+      <section className="rounded border bg-white p-4 space-y-2">
+        <h2 className="font-medium">I miei dati (GDPR)</h2>
+        <p className="text-sm text-gray-600">
+          Scarica una copia di tutti i dati che la piattaforma conserva su di te
+          (profilo, iscrizioni, notifiche, audit log).
+        </p>
+        <a className="inline-block rounded bg-blue-600 px-4 py-2 text-sm text-white"
+           href="/api/me/data-export">Esporta i miei dati (JSON)</a>
+      </section>
     </div>
   );
 }
