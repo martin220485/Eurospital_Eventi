@@ -1,13 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
+from app.core.security import create_checkin_token
 from app.models import RegistrationCustomAnswer, User
 from app.schemas.registration import (
     AnswerOut, RegisterIn, RegistrationDetail, RegistrationListItem,
     RegistrationListResult, RegistrationOut,
 )
-from app.services import registration_service
+from app.services import qr_service, registration_service
 from app.services.rbac import user_has_permission
 
 router = APIRouter(tags=["registrations"])
@@ -127,3 +128,26 @@ def no_show_registration(registration_id: int, db: Session = Depends(get_db),
 def my_registrations(db: Session = Depends(get_db),
                      user: User = Depends(get_current_user)) -> list[RegistrationOut]:
     return [RegistrationOut.model_validate(r) for r in registration_service.list_for_user(db, user.id)]
+
+
+@router.get("/api/registrations/{registration_id}/token")
+def registration_token(registration_id: int, db: Session = Depends(get_db),
+                       user: User = Depends(get_current_user)) -> dict:
+    try:
+        reg = registration_service.get(db, registration_id)
+    except registration_service.RegistrationError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Iscrizione non trovata")
+    _owns_or_perm(db, user, reg, "registrations.read")
+    return {"token": create_checkin_token(reg.id)}
+
+
+@router.get("/api/registrations/{registration_id}/qr")
+def registration_qr(registration_id: int, db: Session = Depends(get_db),
+                    user: User = Depends(get_current_user)) -> Response:
+    try:
+        reg = registration_service.get(db, registration_id)
+    except registration_service.RegistrationError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Iscrizione non trovata")
+    _owns_or_perm(db, user, reg, "registrations.read")
+    png = qr_service.png_for_token(create_checkin_token(reg.id))
+    return Response(content=png, media_type="image/png")
