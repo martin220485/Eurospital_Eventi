@@ -29,12 +29,18 @@ export function EventReportPanel({ eventId }: { eventId: number }) {
         <Card label="Partecipazione" value={att} />
       </div>
 
-      <div>
+      <div className="flex flex-wrap gap-2">
         <a
-          className="inline-block rounded bg-blue-600 px-4 py-2 text-sm text-white"
+          className="inline-flex items-center gap-2 rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
           href={reportsApi.eventCsvUrl(eventId)}
         >
           Esporta CSV iscritti
+        </a>
+        <a
+          className="inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium hover:bg-accent"
+          href={`/api/admin/reports/events/${eventId}/report.pdf`}
+        >
+          Report PDF
         </a>
       </div>
 
