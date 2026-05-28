@@ -65,11 +65,21 @@ Sessione via cookie httpOnly (route handler Next `/api/session/*`); i file caric
 - `/app`: dashboard, **Catalogo** (eventi pubblicati a visibilità "tutti"), **Calendario** (mese/settimana/giorno/lista), scheda evento con **iscrizione** (campi custom + consensi) e **ricevuta/QR**, **Le mie iscrizioni** (futuri/passati/annullati, annulla), **Profilo** (cambio password).
 - Gli eventi a visibilità ristretta restano nascosti finché l'integrazione AD (F8) non fornisce reparti/gruppi. Le email di conferma arrivano in F6.
 
+## Notifiche email (F6)
+- Stack include **Redis** (`redis:7-alpine`, volume `redis_data`, healthcheck `redis-cli ping`) e **worker Celery** (`celery -A app.workers.celery_app worker`, concurrency=2). Avvio: `docker compose up -d redis worker backend`.
+- Variabili: `REDIS_URL=redis://redis:6379/0` (default), `CELERY_BROKER_URL` override opzionale. Worker e backend leggono `APP_SECRET_KEY` per decifrare SMTP via Fernet.
+- Trigger automatici: iscrizione confermata → `registration_confirmed`; in lista d'attesa → `registration_waitlisted`; annullamento → `registration_cancelled`; promozione da waitlist (auto su cancel di un confermato, o admin manuale) → `registration_promoted`. Enqueue dopo `db.commit()`; errori broker loggati ma non bloccano la request.
+- Retry: Celery autoretry 3 volte con backoff esponenziale su `OSError`/`SMTPException`. Ogni tentativo scrive una riga in `notification_logs` con `attempts`, `status` (`pending`/`sent`/`failed`), `error_text`.
+- Configurazione SMTP: via wizard `/setup` (F2) o `/admin/settings/smtp` — host, port, tls_mode (`starttls`/`ssl`/`none`), from, username, password (cifrata at-rest).
+- Editor template: `/admin/notifications` → "Modifica" su un template apre l'editor (`subject`, `body_html` Jinja2 sandbox, placeholder `{{ user.full_name }}`, `{{ event.title }}`, `{{ event.start_at }}`, `{{ event.location }}`, `{{ registration.id }}`). HTML salvato sanitizzato con `nh3`. Anteprima in iframe `sandbox=""`.
+- Log invii: `/admin/notifications/logs` — filtri stato/template, paginazione, **Rinvia** per riga.
+- Permesso `notifications.manage` necessario (seed automatico su ruolo `super_admin`).
+
 ## Test
 - Backend: `cd backend && TEST_DATABASE_URL=mysql+pymysql://eventi:eventi@127.0.0.1:3307/eventi_test uv run pytest`
 - Frontend: `cd frontend && pnpm test && pnpm build`
 
 ## Note infrastruttura
 - F0 non usa MySQL/redis/worker: solo frontend + backend + nginx.
-- Redis + worker Celery arrivano in F6 (notifiche).
+- Redis + worker Celery integrati in F6 (notifiche).
 - nginx dello stack fa solo routing interno e security headers; non termina TLS.
