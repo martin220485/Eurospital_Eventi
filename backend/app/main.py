@@ -2,7 +2,9 @@ import logging
 
 from fastapi import FastAPI
 
-from app.api.routers import attachments, auth, catalog, categories, checkin, events, registrations, setup
+from app.api.routers import (
+    attachments, auth, catalog, categories, checkin, events, notifications, registrations, setup,
+)
 from app.core.config import get_settings
 
 logger = logging.getLogger("app.setup")
@@ -16,6 +18,7 @@ app.include_router(attachments.router)
 app.include_router(registrations.router)
 app.include_router(checkin.router)
 app.include_router(catalog.router)
+app.include_router(notifications.router)
 
 
 @app.on_event("startup")
