@@ -18,6 +18,18 @@ def _test_url() -> str:
     return url
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _override_database_url():
+    """Point setup_service (and any other consumer reading
+    `get_settings().sqlalchemy_url`) at the test database for the whole session.
+    """
+    settings = get_settings()
+    original = settings.database_url
+    object.__setattr__(settings, "database_url", _test_url())
+    yield
+    object.__setattr__(settings, "database_url", original)
+
+
 @pytest.fixture(scope="session")
 def engine():
     eng = create_engine(_test_url(), pool_pre_ping=True, future=True)
