@@ -1,5 +1,6 @@
 from app.models.associations import role_permissions, user_roles
 from app.models.attachment import Attachment
+from app.models.audit_log import AuditLog
 from app.models.checkin import Checkin
 from app.models.registration import Registration
 from app.models.registration_answer import RegistrationCustomAnswer
@@ -39,4 +40,5 @@ __all__ = [
     "Checkin",
     "NotificationTemplate",
     "NotificationLog",
+    "AuditLog",
 ]
