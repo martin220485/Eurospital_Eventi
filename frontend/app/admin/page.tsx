@@ -6,6 +6,7 @@ import { BarChart } from "@/components/admin/bar-chart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 import type { KpiOut } from "@/lib/reports-api";
 
 async function fetchKpis(searchParams: { date_from?: string; date_to?: string }): Promise<KpiOut | null> {
@@ -47,8 +48,19 @@ export default async function AdminDashboard({
     );
   }
 
-  const attendancePct = `${Math.round(kpis.attendance_rate * 100)}%`;
+  const rate = Number.isFinite(kpis.attendance_rate) ? kpis.attendance_rate : 0;
+  const attendancePct = `${Math.round(rate * 100)}%`;
+  // Color carries state: green = healthy, amber = needs attention. Status only.
+  const attendanceTone =
+    kpis.registrations_total === 0 ? "default" : rate >= 0.8 ? "success" : rate < 0.6 ? "warning" : "default";
   const topEvent = kpis.top_events[0];
+
+  const presets: { label: string; from?: string }[] = [
+    { label: "Tutto" },
+    { label: "30g", from: last(30) },
+    { label: "90g", from: last(90) },
+    { label: "Anno", from: last(365) },
+  ];
 
   return (
     <div className="space-y-6">
@@ -57,11 +69,25 @@ export default async function AdminDashboard({
           <h1>Dashboard</h1>
           <p className="text-sm text-muted-foreground">Panoramica eventi e iscrizioni</p>
         </div>
-        <div className="flex items-center gap-1 rounded-lg border bg-white p-1 text-xs">
-          <Link href="/admin" className="rounded px-2 py-1 hover:bg-accent">Tutto</Link>
-          <Link href={`/admin?date_from=${last(30)}`} className="rounded px-2 py-1 hover:bg-accent">30g</Link>
-          <Link href={`/admin?date_from=${last(90)}`} className="rounded px-2 py-1 hover:bg-accent">90g</Link>
-          <Link href={`/admin?date_from=${last(365)}`} className="rounded px-2 py-1 hover:bg-accent">Anno</Link>
+        <div className="flex items-center gap-1 rounded-lg border bg-card p-1 text-xs">
+          {presets.map((p) => {
+            const active = (p.from ?? undefined) === (params.date_from ?? undefined);
+            return (
+              <Link
+                key={p.label}
+                href={p.from ? `/admin?date_from=${p.from}` : "/admin"}
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "rounded px-2.5 py-1 transition-colors",
+                  active
+                    ? "bg-brand-600 font-medium text-white"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                )}
+              >
+                {p.label}
+              </Link>
+            );
+          })}
         </div>
       </div>
 
@@ -77,21 +103,21 @@ export default async function AdminDashboard({
           value={kpis.registrations_total}
           hint={`${kpis.registrations_confirmed} confermate · ${kpis.registrations_waitlisted} in attesa`}
           icon={Users}
-          tone="success"
         />
         <KpiCard
           label="Partecipazione"
           value={attendancePct}
           hint={`${kpis.registrations_attended} presenti · ${kpis.registrations_no_show} no-show`}
           icon={CheckCircle2}
-          tone="success"
+          tone={attendanceTone}
+          featured
         />
         <KpiCard
           label="Top evento"
           value={topEvent?.title ?? "—"}
           hint={topEvent ? `${topEvent.confirmed} iscritti` : "Nessun evento attivo"}
           icon={Trophy}
-          tone="warning"
+          compact
         />
       </div>
 
