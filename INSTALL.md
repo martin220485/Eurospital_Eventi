@@ -55,6 +55,11 @@ Da `/admin` gestisce:
 
 Sessione via cookie httpOnly (route handler Next `/api/session/*`); i file caricati risiedono sul volume `uploads_data`.
 
+## Iscrizioni e check-in (F4)
+- Dalla pagina evento (`/admin/events/{id}`), tab **Iscritti**: elenco iscritti con stato, iscrizione manuale (per ID utente), annulla, promuovi (lista d'attesa), segna no-show, QR per iscrizione.
+- Pagina **Check-in** (`/admin/checkin`): l'operatore (ruolo `checkin_operator`) incolla/scansiona il token QR del partecipante per registrare la presenza (`attended`).
+- Capienza e `max_per_user` sono applicati lato server con lock dell'evento (niente overbooking); la lista d'attesa promuove automaticamente alla cancellazione di un confermato. Le email di conferma/promozione arrivano in F6.
+
 ## Test
 - Backend: `cd backend && TEST_DATABASE_URL=mysql+pymysql://eventi:eventi@127.0.0.1:3307/eventi_test uv run pytest`
 - Frontend: `cd frontend && pnpm test && pnpm build`
