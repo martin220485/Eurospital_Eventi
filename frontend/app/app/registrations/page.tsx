@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { CalendarOff, History, Ticket, XCircle } from "lucide-react";
+import { Award, CalendarOff, History, Ticket, XCircle } from "lucide-react";
 import { RegistrationReceipt } from "@/components/app/registration-receipt";
 import { api } from "@/lib/admin-api";
 import { catalogApi, type MyEvent } from "@/lib/catalog-api";
@@ -67,6 +67,13 @@ export default function MyRegistrationsPage() {
         </div>
         {opts.qr && m.status === "confirmed" && (
           <div className="mt-3"><RegistrationReceipt registrationId={m.registration_id} status={m.status} /></div>
+        )}
+        {m.status === "attended" && (
+          <Button variant="outline" size="sm" className="mt-2" asChild>
+            <a href={`/api/catalog/registrations/${m.registration_id}/certificate.pdf`}>
+              <Award className="h-3.5 w-3.5" /> Scarica attestato
+            </a>
+          </Button>
         )}
         {opts.cancel && ["confirmed", "waitlisted"].includes(m.status) && (
           <Button variant="ghost" size="sm" className="mt-2 text-destructive hover:bg-destructive/10" onClick={() => cancel(m.registration_id)}>

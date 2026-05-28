@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
@@ -68,3 +68,48 @@ def my_events(db: Session = Depends(get_db), user: User = Depends(get_current_us
                     event_start_at=ev.start_at, status=r.status)
         for r, ev in catalog_service.my_events(db, user.id)
     ]
+
+
+@router.get("/events/{event_id}/ics")
+def event_ics(event_id: int, db: Session = Depends(get_db),
+              user: User = Depends(get_current_user)) -> Response:
+    """Download .ics per importare l'evento nel calendario personale."""
+    from app.services import ics_service
+    try:
+        ev = catalog_service.get_visible_event(db, event_id, user=user)
+    except catalog_service.CatalogError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Evento non disponibile")
+    content = ics_service.event_to_ics(db, ev)
+    return Response(
+        content=content,
+        media_type="text/calendar; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="event-{ev.id}.ics"'},
+    )
+
+
+@router.get("/registrations/{registration_id}/certificate.pdf")
+def attendance_certificate(registration_id: int,
+                           db: Session = Depends(get_db),
+                           user: User = Depends(get_current_user)) -> Response:
+    """Attestato PDF di partecipazione (solo se status='attended')."""
+    from app.services import pdf_service, registration_service
+    try:
+        reg = registration_service.get(db, registration_id)
+    except registration_service.RegistrationError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Iscrizione non trovata")
+    if reg.user_id != user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permesso negato")
+    if reg.status != "attended":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Attestato disponibile solo per partecipazioni confermate")
+    from app.models import Event
+    ev = db.get(Event, reg.event_id)
+    pdf = pdf_service.attendance_certificate(
+        user_full_name=user.full_name or user.username,
+        event_title=ev.title if ev else "Evento",
+        event_date=ev.start_at if ev else None,
+        signature_name="Eurospital",
+    )
+    return Response(
+        content=pdf, media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="attestato-{reg.id}.pdf"'},
+    )

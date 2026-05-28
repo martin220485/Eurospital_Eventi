@@ -8,7 +8,7 @@ celery_app = Celery(
     "eurospital_eventi",
     broker=_settings.broker_url,
     backend=_settings.broker_url,
-    include=["app.workers.tasks"],
+    include=["app.workers.tasks", "app.workers.beat"],
 )
 
 celery_app.conf.task_acks_late = True

@@ -1,6 +1,6 @@
 from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -51,6 +51,31 @@ def event_registrations_csv(event_id: int, db: Session = Depends(get_db)) -> Str
         headers={
             "Content-Disposition": f'attachment; filename="event-{event_id}-registrations.csv"',
         },
+    )
+
+
+@router.get(
+    "/events/{event_id}/report.pdf",
+    dependencies=[Depends(require_permission(_PERM))],
+)
+def event_report_pdf(event_id: int, db: Session = Depends(get_db)) -> Response:
+    from app.services import pdf_service
+    out = report_service.event_report(db, event_id)
+    if out is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="evento non trovato")
+    pdf = pdf_service.event_report_pdf(
+        event_title=out["event"]["title"],
+        event_start=out["event"]["start_at"],
+        event_end=out["event"]["end_at"],
+        capacity=out["event"]["capacity"],
+        status=out["event"]["status"],
+        counts=out["counts"],
+        attendance_rate=out["attendance_rate"],
+        custom_fields_summary=out["custom_fields_summary"],
+    )
+    return Response(
+        content=pdf, media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="event-{event_id}-report.pdf"'},
     )
 
 

@@ -77,3 +77,58 @@ class _SmtpView:
     def __init__(self, **kw):
         for k, v in kw.items():
             setattr(self, k, v)
+
+
+@celery_app.task(name="app.workers.tasks.send_pre_event_reminders")
+def send_pre_event_reminders(hours_before: int) -> dict:
+    """Trova iscrizioni confermate per eventi che iniziano tra ~`hours_before` ore
+    (finestra ±30 min) e accoda l'invio del template `event_reminder`."""
+    from datetime import datetime, timedelta
+    from sqlalchemy import select
+    from app.models import Event, Registration
+    from app.services import notification_service
+
+    db = SessionLocal()
+    queued = 0
+    try:
+        now = datetime.utcnow()
+        target = now + timedelta(hours=hours_before)
+        win_start = target - timedelta(minutes=30)
+        win_end = target + timedelta(minutes=30)
+
+        regs = db.scalars(
+            select(Registration).join(Event, Event.id == Registration.event_id)
+            .where(
+                Registration.status == "confirmed",
+                Event.start_at >= win_start,
+                Event.start_at <= win_end,
+                Event.status == "published",
+            )
+        ).all()
+        for r in regs:
+            try:
+                notification_service.enqueue_registration_notification(
+                    db, "event_reminder", r.id,
+                )
+                queued += 1
+            except Exception:
+                pass
+    finally:
+        db.close()
+    return {"hours_before": hours_before, "queued": queued}
+
+
+@celery_app.task(name="app.workers.tasks.cleanup_audit_logs_task")
+def cleanup_audit_logs_task() -> dict:
+    from app.core.config import get_settings
+    from app.services import audit_service
+
+    db = SessionLocal()
+    try:
+        deleted = audit_service.cleanup_older_than(
+            db, days=get_settings().audit_log_retention_days
+        )
+        db.commit()
+    finally:
+        db.close()
+    return {"deleted": deleted}
