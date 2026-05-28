@@ -105,24 +105,27 @@ def _recompact(db: Session, event_id: int) -> None:
     db.flush()
 
 
-def _promote_next(db: Session, event_id: int) -> None:
+def _promote_next(db: Session, event_id: int) -> Registration | None:
     ev = _event_locked(db, event_id)
     if ev.capacity is not None and _occupied(db, event_id) >= ev.capacity:
-        return
+        return None
     nxt = db.scalar(
         select(Registration)
         .where(Registration.event_id == event_id, Registration.status == "waitlisted")
         .order_by(Registration.waitlist_position).limit(1)
     )
     if nxt is None:
-        return
+        return None
     nxt.status = "confirmed"
     nxt.waitlist_position = None
     db.flush()
     _recompact(db, event_id)
+    return nxt
 
 
 def cancel(db: Session, registration_id: int, *, actor_id: int | None) -> Registration:
+    """Cancel a registration. Sets transient attribute `promoted_registration_id`
+    on the returned object so callers (router) can enqueue notifications."""
     reg = get(db, registration_id)
     if reg.status not in ("confirmed", "waitlisted", "pending"):
         raise RegistrationError("registration cannot be cancelled in its current state")
@@ -138,8 +141,11 @@ def cancel(db: Session, registration_id: int, *, actor_id: int | None) -> Regist
     reg.waitlist_position = None
     db.flush()
     _recompact(db, reg.event_id)
+    promoted_id: int | None = None
     if was_confirmed:
-        _promote_next(db, reg.event_id)
+        promoted = _promote_next(db, reg.event_id)
+        promoted_id = promoted.id if promoted is not None else None
+    reg.promoted_registration_id = promoted_id  # type: ignore[attr-defined]
     return reg
 
 

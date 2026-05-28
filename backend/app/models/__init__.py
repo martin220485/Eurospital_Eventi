@@ -13,6 +13,8 @@ from app.models.permission import Permission
 from app.models.platform_settings import PlatformSettings
 from app.models.refresh_token import RefreshToken
 from app.models.role import Role
+from app.models.notification_log import NotificationLog
+from app.models.notification_template import NotificationTemplate
 from app.models.smtp_settings import SmtpSettings
 from app.models.user import User
 
@@ -35,4 +37,6 @@ __all__ = [
     "Registration",
     "RegistrationCustomAnswer",
     "Checkin",
+    "NotificationTemplate",
+    "NotificationLog",
 ]
