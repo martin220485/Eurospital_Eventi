@@ -40,6 +40,31 @@ export function RegisterForm({
                      onChange={(e) => set(f.id, e.target.checked ? "true" : "false")} />
               {f.label}{f.required && " *"}
             </label>
+          ) : f.field_type === "checkbox" ? (
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" aria-label={f.label}
+                     checked={values[f.id] === "true"}
+                     onChange={(e) => set(f.id, e.target.checked ? "true" : "false")} />
+              {f.label}{f.required && " *"}
+            </label>
+          ) : ["select_multi", "checkbox_multi"].includes(f.field_type) ? (
+            <fieldset className="text-sm">
+              <legend>{f.label}{f.required && " *"}</legend>
+              {f.options.map((o) => {
+                const selected = (values[f.id] ?? "").split(",").filter(Boolean);
+                const checked = selected.includes(o.value);
+                return (
+                  <label key={o.value} className="flex items-center gap-2">
+                    <input type="checkbox" checked={checked}
+                           onChange={() => {
+                             const next = checked ? selected.filter((v) => v !== o.value) : [...selected, o.value];
+                             set(f.id, next.join(","));
+                           }} />
+                    {o.label}
+                  </label>
+                );
+              })}
+            </fieldset>
           ) : ["select", "radio"].includes(f.field_type) ? (
             <label className="block text-sm">{f.label}{f.required && " *"}
               <select className="mt-1 w-full rounded border p-2" value={values[f.id] ?? ""}
