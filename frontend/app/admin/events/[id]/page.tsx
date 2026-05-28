@@ -4,11 +4,13 @@ import { use, useEffect, useState } from "react";
 import { AttachmentManager } from "@/components/admin/attachment-manager";
 import { EventForm } from "@/components/admin/event-form";
 import { FieldBuilder } from "@/components/admin/field-builder";
+import { ManualRegisterDialog } from "@/components/admin/manual-register-dialog";
+import { RegistrationsPanel } from "@/components/admin/registrations-panel";
 import { VisibilityEditor } from "@/components/admin/visibility-editor";
 import { api } from "@/lib/admin-api";
 import type { EventInput } from "@/lib/event-schemas";
 
-const TABS = ["Dettagli", "Campi custom", "Allegati", "Visibilità"] as const;
+const TABS = ["Dettagli", "Campi custom", "Allegati", "Visibilità", "Iscritti"] as const;
 
 export default function EditEventPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -16,6 +18,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
   const [tab, setTab] = useState<(typeof TABS)[number]>("Dettagli");
   const [initial, setInitial] = useState<Partial<EventInput> | null>(null);
   const [msg, setMsg] = useState("");
+  const [regRefresh, setRegRefresh] = useState(0);
 
   useEffect(() => {
     api.get<Record<string, unknown>>(`/events/${eventId}`).then((e) => {
@@ -46,6 +49,12 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
       {tab === "Campi custom" && <FieldBuilder eventId={eventId} />}
       {tab === "Allegati" && <AttachmentManager eventId={eventId} />}
       {tab === "Visibilità" && <VisibilityEditor eventId={eventId} />}
+      {tab === "Iscritti" && (
+        <div className="space-y-3">
+          <ManualRegisterDialog eventId={eventId} onDone={() => setRegRefresh((n) => n + 1)} />
+          <RegistrationsPanel key={regRefresh} eventId={eventId} />
+        </div>
+      )}
     </div>
   );
 }
