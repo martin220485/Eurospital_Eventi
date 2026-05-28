@@ -70,3 +70,32 @@ def _log_setup_token() -> None:
 @app.get("/api/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/api/health/detailed")
+def health_detailed() -> dict:
+    """Verbose health: DB connect + Redis ping. Used by ops/monitoring."""
+    out: dict = {"status": "ok", "checks": {}}
+    try:
+        from sqlalchemy import text
+        from app.db.session import SessionLocal
+        db = SessionLocal()
+        try:
+            db.execute(text("SELECT 1"))
+            out["checks"]["db"] = "ok"
+        finally:
+            db.close()
+    except Exception as exc:
+        out["status"] = "degraded"
+        out["checks"]["db"] = f"error: {exc.__class__.__name__}"
+    try:
+        r = _build_redis()
+        if r is not None:
+            r.ping()
+            out["checks"]["redis"] = "ok"
+        else:
+            out["checks"]["redis"] = "not-configured"
+    except Exception as exc:
+        out["status"] = "degraded"
+        out["checks"]["redis"] = f"error: {exc.__class__.__name__}"
+    return out
