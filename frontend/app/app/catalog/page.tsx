@@ -23,6 +23,9 @@ type SortDir = "asc" | "desc";
 
 type Category = { id: number; name: string; color: string | null };
 
+// Above this many categories, collapse the chip row behind a "show all" toggle.
+const CAT_LIMIT = 8;
+
 function isAvailable(e: CatalogEvent) {
   return e.available_spots === null || e.available_spots > 0;
 }
@@ -40,6 +43,7 @@ export default function CatalogPage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [showAllCats, setShowAllCats] = useState(false);
 
   // Becomes true once filters are hydrated from the URL; gates fetch + URL sync.
   const [ready, setReady] = useState(false);
@@ -290,7 +294,7 @@ export default function CatalogPage() {
         {/* Row 2: category chips + toggles */}
         {(categories.length > 0 || raw !== null) && (
           <div className="flex flex-wrap items-center gap-2">
-            {categories.map((c) => {
+            {(showAllCats ? categories : categories.slice(0, CAT_LIMIT)).map((c) => {
               const active = selectedCats.has(c.id);
               return (
                 <FilterChip key={c.id} active={active} onClick={() => toggleCat(c.id)}>
@@ -303,6 +307,16 @@ export default function CatalogPage() {
                 </FilterChip>
               );
             })}
+            {categories.length > CAT_LIMIT && (
+              <button
+                type="button"
+                onClick={() => setShowAllCats((v) => !v)}
+                aria-expanded={showAllCats}
+                className="inline-flex min-h-[34px] items-center rounded-full px-2 py-1.5 text-xs font-medium text-brand-700 transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
+              >
+                {showAllCats ? "Mostra meno" : `+${categories.length - CAT_LIMIT} categorie`}
+              </button>
+            )}
             {categories.length > 0 && (
               <span className="mx-1 h-5 w-px bg-border" aria-hidden />
             )}
@@ -419,7 +433,7 @@ function FilterChip({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+        "inline-flex min-h-[34px] items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
         active
           ? "border-brand-600 bg-brand-600 text-white hover:bg-brand-700"
           : "border-input bg-background text-foreground hover:bg-accent",
