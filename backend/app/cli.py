@@ -48,6 +48,20 @@ def _cmd_create_admin(args: argparse.Namespace) -> None:
         db.close()
 
 
+def _cmd_cleanup_audit_logs(args: argparse.Namespace) -> None:
+    from app.core.config import get_settings
+    from app.services import audit_service
+
+    days = args.days if args.days is not None else get_settings().audit_log_retention_days
+    db = SessionLocal()
+    try:
+        deleted = audit_service.cleanup_older_than(db, days=days)
+        db.commit()
+        print(f"Cancellate {deleted} righe audit_logs (>{days} giorni).")
+    finally:
+        db.close()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="app.cli")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -57,6 +71,11 @@ def main() -> None:
     p.add_argument("--username", required=True)
     p.add_argument("--update", action="store_true", help="Aggiorna se esiste")
     p.set_defaults(func=_cmd_create_admin)
+
+    pc = sub.add_parser("cleanup-audit-logs", help="Cancella audit log oltre la retention")
+    pc.add_argument("--days", type=int, default=None,
+                    help="Override retention (default: AUDIT_LOG_RETENTION_DAYS)")
+    pc.set_defaults(func=_cmd_cleanup_audit_logs)
 
     args = parser.parse_args()
     args.func(args)
