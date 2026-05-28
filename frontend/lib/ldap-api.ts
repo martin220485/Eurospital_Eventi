@@ -46,4 +46,5 @@ export const ldapApi = {
   syncUser: (username: string) =>
     api.post<LdapSyncResult>(`/admin/ldap/sync-user/${encodeURIComponent(username)}`),
   syncAll: () => api.post<LdapSyncResult>("/admin/ldap/sync-all"),
+  cleanupUsers: () => api.post<LdapSyncResult>("/admin/ldap/cleanup-users"),
 };

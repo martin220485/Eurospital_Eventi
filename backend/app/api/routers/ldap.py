@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_db, require_permission
+from app.api.deps import get_current_user, get_db, require_permission
+from app.models import User
 from app.schemas.ldap import (
     LdapPreviewOut, LdapSettingsIn, LdapSettingsOut, LdapSyncResult, LdapTestResult,
 )
@@ -108,6 +109,44 @@ def sync_user(username: str, db: Session = Depends(get_db)) -> LdapSyncResult:
     return LdapSyncResult(
         ok=True, action=("updated" if existing else "created"), user_id=user.id,
     )
+
+
+@router.post(
+    "/cleanup-users",
+    response_model=LdapSyncResult,
+    dependencies=[Depends(require_permission(_PERM))],
+)
+def cleanup_users(request: Request, db: Session = Depends(get_db),
+                  actor: User = Depends(get_current_user)) -> LdapSyncResult:
+    """Rimuove utenti con auth_source='ldap'. Utenti con iscrizioni vengono anonimizzati,
+    gli altri vengono cancellati definitivamente."""
+    from sqlalchemy import select
+    from app.models import Registration
+    from app.services import audit_service, gdpr_service
+    deleted = anonymized = 0
+    rows = db.scalars(select(User).where(User.auth_source == "ldap")).all()
+    for u in rows:
+        has = db.scalar(select(Registration.id).where(Registration.user_id == u.id).limit(1))
+        if has:
+            try:
+                gdpr_service.anonymize_user(db, u.id)
+                anonymized += 1
+            except Exception:
+                pass
+        else:
+            try:
+                db.delete(u); db.flush(); deleted += 1
+            except Exception:
+                pass
+    ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (
+        request.client.host if request.client else ""
+    )
+    audit_service.log(db, action="ldap.cleanup", actor_id=actor.id,
+                      target_type="users", target_id=0, ip=ip,
+                      payload={"deleted": deleted, "anonymized": anonymized})
+    db.commit()
+    return LdapSyncResult(ok=True, created=0, updated=0, errors=0,
+                          message=f"Eliminati {deleted}, anonimizzati {anonymized}")
 
 
 @router.post(

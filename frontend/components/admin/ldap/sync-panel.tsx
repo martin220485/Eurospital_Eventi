@@ -46,6 +46,22 @@ export function SyncPanel() {
     }
   }
 
+  async function onCleanup() {
+    if (!window.confirm(
+      "Rimuovere tutti gli utenti importati da LDAP?\n\n" +
+      "Quelli senza iscrizioni vengono CANCELLATI definitivamente.\n" +
+      "Quelli con iscrizioni vengono ANONIMIZZATI (PII rimossa, FK preservata)."
+    )) return;
+    setBusy(true); setError(null); setResult(null);
+    try {
+      setResult(await ldapApi.cleanupUsers());
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "errore");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="space-y-3">
       <h2 className="text-lg font-medium">Sincronizzazione</h2>
@@ -65,9 +81,13 @@ export function SyncPanel() {
         </button>
       </div>
 
-      <div>
+      <div className="flex flex-wrap gap-2">
         <button onClick={onSyncAll} disabled={busy} className="rounded border px-4 py-2 text-sm">
           Sync tutti gli utenti AD
+        </button>
+        <button onClick={onCleanup} disabled={busy}
+                className="rounded border border-red-300 px-4 py-2 text-sm text-red-700 hover:bg-red-50">
+          Ripulisci utenti LDAP
         </button>
       </div>
 
