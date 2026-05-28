@@ -54,10 +54,46 @@ def get_event(event_id: int, db: Session = Depends(get_db),
                 for o in custom_field_service.get_options(db, f.id)]
         fields.append(CustomField(id=f.id, label=f.label, field_type=f.field_type,
                                   required=f.required, placeholder=f.placeholder, options=opts))
+    # Conteggi
+    from sqlalchemy import func, select
+    from app.models import Attachment, Registration
+    confirmed = db.scalar(
+        select(func.count(Registration.id)).where(
+            Registration.event_id == ev.id,
+            Registration.status.in_(("confirmed", "attended")),
+        )
+    ) or 0
+    waitlist = db.scalar(
+        select(func.count(Registration.id)).where(
+            Registration.event_id == ev.id,
+            Registration.status == "waitlisted",
+        )
+    ) or 0
+    # Attachments
+    from app.schemas.catalog import AttachmentItem
+    atts: list[AttachmentItem] = []
+    for a in db.scalars(select(Attachment).where(Attachment.event_id == ev.id)).all():
+        atts.append(AttachmentItem(
+            id=a.id, filename=a.filename,
+            content_type=getattr(a, "content_type", None),
+            size_bytes=getattr(a, "size_bytes", None),
+            download_url=f"/api/events/{ev.id}/attachments/{a.id}",
+        ))
+
     return CatalogEventDetail(
-        **base.model_dump(), description=ev.description, location_name=ev.location_name,
-        address=ev.address, online_url=ev.online_url, waitlist_enabled=ev.waitlist_enabled,
+        **base.model_dump(),
+        description=ev.description, location_name=ev.location_name,
+        address=ev.address, online_url=ev.online_url,
+        capacity=ev.capacity,
+        confirmed_count=int(confirmed),
+        waitlist_enabled=ev.waitlist_enabled,
+        waitlist_count=int(waitlist),
+        registration_open_at=ev.registration_open_at,
+        registration_close_at=ev.registration_close_at,
+        cancellation_allowed=ev.cancellation_allowed,
+        cancellation_deadline_at=ev.cancellation_deadline_at,
         custom_fields=fields,
+        attachments=atts,
     )
 
 

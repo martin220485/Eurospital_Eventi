@@ -10,9 +10,26 @@ export type CustomField = {
   id: number; label: string; field_type: string; required: boolean;
   placeholder: string | null; options: { label: string; value: string }[];
 };
+export type AttachmentItem = {
+  id: number; filename: string;
+  content_type: string | null; size_bytes: number | null;
+  download_url: string;
+};
 export type CatalogEventDetail = CatalogEvent & {
-  description: string | null; location_name: string | null; address: string | null;
-  online_url: string | null; waitlist_enabled: boolean; custom_fields: CustomField[];
+  description: string | null;
+  location_name: string | null;
+  address: string | null;
+  online_url: string | null;
+  capacity: number | null;
+  confirmed_count: number;
+  waitlist_enabled: boolean;
+  waitlist_count: number;
+  registration_open_at: string | null;
+  registration_close_at: string | null;
+  cancellation_allowed: boolean;
+  cancellation_deadline_at: string | null;
+  custom_fields: CustomField[];
+  attachments: AttachmentItem[];
 };
 export type MyEvent = {
   registration_id: number; event_id: number; event_title: string;

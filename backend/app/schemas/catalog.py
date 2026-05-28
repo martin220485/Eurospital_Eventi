@@ -32,13 +32,29 @@ class CustomField(BaseModel):
     options: list[CustomFieldOption] = []
 
 
+class AttachmentItem(BaseModel):
+    id: int
+    filename: str
+    content_type: str | None = None
+    size_bytes: int | None = None
+    download_url: str
+
+
 class CatalogEventDetail(CatalogEventItem):
     description: str | None = None
     location_name: str | None = None
     address: str | None = None
     online_url: str | None = None
+    capacity: int | None = None
+    confirmed_count: int = 0
     waitlist_enabled: bool
+    waitlist_count: int = 0
+    registration_open_at: datetime | None = None
+    registration_close_at: datetime | None = None
+    cancellation_allowed: bool = False
+    cancellation_deadline_at: datetime | None = None
     custom_fields: list[CustomField] = []
+    attachments: list[AttachmentItem] = []
 
 
 class MyEventItem(BaseModel):
