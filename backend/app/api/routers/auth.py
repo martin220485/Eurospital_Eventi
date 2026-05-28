@@ -76,6 +76,20 @@ def change_password(payload: ChangePasswordIn, db: Session = Depends(get_db),
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
+@router.get("/hints")
+def auth_hints(db: Session = Depends(get_db)) -> dict:
+    """Hint pubblico per la pagina login (sso attivo, label directory)."""
+    from app.services import settings_service
+    try:
+        ldap_cfg = settings_service.get_ldap(db)
+    except Exception:
+        return {"sso_enabled": False, "directory_label": None}
+    return {
+        "sso_enabled": bool(ldap_cfg.sso_enabled),
+        "directory_label": "Active Directory aziendale" if ldap_cfg.sso_enabled else None,
+    }
+
+
 @router.get("/me", response_model=UserOut)
 def me(db: Session = Depends(get_db), user: User = Depends(get_current_user)) -> UserOut:
     perms = sorted(user_service.get_user_permissions(db, user))

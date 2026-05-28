@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Download, KeyRound, Mail, User as UserIcon } from "lucide-react";
+import Link from "next/link";
+import { Download, KeyRound, LayoutDashboard, Mail, User as UserIcon } from "lucide-react";
 import { api } from "@/lib/admin-api";
 import { changePasswordSchema } from "@/lib/catalog-schemas";
 import { Button } from "@/components/ui/button";
@@ -10,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/toaster";
 
-type Me = { username: string; email: string; full_name?: string };
+type Me = { username: string; email: string; full_name?: string; permissions?: string[] };
 
 export default function ProfilePage() {
   const [me, setMe] = useState<Me | null>(null);
@@ -37,9 +38,18 @@ export default function ProfilePage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1>Profilo</h1>
-        <p className="text-sm text-muted-foreground">Dati personali e impostazioni</p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1>Profilo</h1>
+          <p className="text-sm text-muted-foreground">Dati personali e impostazioni</p>
+        </div>
+        {me?.permissions && me.permissions.length > 0 && (
+          <Button variant="outline" asChild>
+            <Link href="/admin">
+              <LayoutDashboard className="h-4 w-4" /> Vai al Backoffice
+            </Link>
+          </Button>
+        )}
       </div>
 
       <Card>

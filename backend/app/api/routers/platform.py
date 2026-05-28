@@ -195,6 +195,75 @@ class SmtpTestIn(BaseModel):
     from_address: str
 
 
+# ----- Database management -----
+
+@router.get(
+    "/db",
+    dependencies=[Depends(require_permission(_PERM))],
+)
+def db_status(db: Session = Depends(get_db)) -> dict:
+    """Stato schema: revisione Alembic, head, tabelle, viste."""
+    from alembic.config import Config
+    from alembic.script import ScriptDirectory
+    from sqlalchemy import create_engine, inspect
+
+    from app.core.config import get_settings
+
+    cfg = Config("alembic.ini")
+    cfg.set_main_option("sqlalchemy.url", get_settings().sqlalchemy_url)
+    script = ScriptDirectory.from_config(cfg)
+    head = script.get_current_head()
+    current = db.execute(text("SELECT version_num FROM alembic_version")).scalar()
+    eng = create_engine(get_settings().sqlalchemy_url)
+    try:
+        insp = inspect(eng)
+        tables = sorted(insp.get_table_names())
+        views = sorted(insp.get_view_names())
+    finally:
+        eng.dispose()
+    return {
+        "current_revision": current,
+        "head_revision": head,
+        "up_to_date": current == head,
+        "tables": tables,
+        "views": views,
+    }
+
+
+@router.post(
+    "/db/migrate",
+    dependencies=[Depends(require_permission(_PERM))],
+)
+def db_migrate(request: Request, db: Session = Depends(get_db),
+               actor: User = Depends(get_current_user)) -> dict:
+    """Applica le migrazioni Alembic fino a head."""
+    res = setup_service.run_migrations()
+    ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (
+        request.client.host if request.client else ""
+    )
+    audit_service.log(db, action="db.migrate", actor_id=actor.id,
+                      target_type="db", target_id=1, ip=ip, payload=res)
+    db.commit()
+    return res
+
+
+@router.post(
+    "/db/rebuild-objects",
+    dependencies=[Depends(require_permission(_PERM))],
+)
+def db_rebuild_objects(request: Request, db: Session = Depends(get_db),
+                       actor: User = Depends(get_current_user)) -> dict:
+    """Ricrea oggetti DB derivati (viste, indici idempotenti) eseguendo migrazioni a head."""
+    res = setup_service.run_migrations()
+    ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (
+        request.client.host if request.client else ""
+    )
+    audit_service.log(db, action="db.rebuild", actor_id=actor.id,
+                      target_type="db", target_id=1, ip=ip, payload=res)
+    db.commit()
+    return res
+
+
 @router.post(
     "/smtp/test",
     dependencies=[Depends(require_permission(_PERM))],

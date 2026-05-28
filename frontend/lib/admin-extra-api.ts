@@ -53,6 +53,15 @@ export const platformApi = {
     recent_failed_notifications: Array<Record<string, unknown>>;
     audit_retention_days: number;
   }>("/admin/platform/status"),
+  dbStatus: () => api.get<{
+    current_revision: string | null;
+    head_revision: string | null;
+    up_to_date: boolean;
+    tables: string[];
+    views: string[];
+  }>("/admin/platform/db"),
+  dbMigrate: () => api.post<{ revision: string; tables: string[] }>("/admin/platform/db/migrate"),
+  dbRebuild: () => api.post<{ revision: string; tables: string[] }>("/admin/platform/db/rebuild-objects"),
 };
 
 // SMTP settings

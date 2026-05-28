@@ -1,19 +1,29 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { ListChecks, Lock, User } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Building2, ListChecks, Lock, User } from "lucide-react";
 import { login, resolveLanding } from "@/lib/admin-api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
+type Hints = { sso_enabled: boolean; directory_label: string | null };
+
 export default function LoginPage() {
   const router = useRouter();
   const [form, setForm] = useState({ identifier: "", password: "" });
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [hints, setHints] = useState<Hints>({ sso_enabled: false, directory_label: null });
+
+  useEffect(() => {
+    fetch("/api/auth/hints", { cache: "no-store" })
+      .then((r) => r.ok ? r.json() : null)
+      .then((d: Hints | null) => { if (d) setHints(d); })
+      .catch(() => {});
+  }, []);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -42,9 +52,20 @@ export default function LoginPage() {
           </div>
         </CardHeader>
         <CardContent>
+          {hints.sso_enabled && (
+            <div className="mb-4 flex items-start gap-2 rounded-md border border-brand-200 bg-brand-50 px-3 py-2 text-xs text-brand-800">
+              <Building2 className="mt-0.5 h-4 w-4 shrink-0" />
+              <div>
+                <strong>Single Sign-On attivo.</strong> Accedi con le credenziali della tua{" "}
+                {hints.directory_label ?? "directory aziendale"}.
+                Gli admin di emergenza possono usare il login locale.
+              </div>
+            </div>
+          )}
+
           <form onSubmit={submit} className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="identifier">Email o username</Label>
+              <Label htmlFor="identifier">{hints.sso_enabled ? "Username AD / email" : "Email o username"}</Label>
               <div className="relative">
                 <User className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
