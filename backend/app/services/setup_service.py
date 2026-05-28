@@ -38,7 +38,7 @@ def test_db_connection() -> dict:
 
 def run_migrations() -> dict:
     cfg = Config("alembic.ini")
-    cfg.set_main_option("sqlalchemy.url", get_settings().sqlalchemy_url)
+    cfg.set_main_option("sqlalchemy.url", get_settings().sqlalchemy_url.replace("%", "%%"))
     command.upgrade(cfg, "head")
     head = ScriptDirectory.from_config(cfg).get_current_head()
     eng = create_engine(get_settings().sqlalchemy_url)
@@ -103,7 +103,7 @@ def test_ldap(*, server_uri: str, bind_dn: str, bind_pw: str) -> dict:
 
 def db_at_head(db: Session) -> bool:
     cfg = Config("alembic.ini")
-    cfg.set_main_option("sqlalchemy.url", get_settings().sqlalchemy_url)
+    cfg.set_main_option("sqlalchemy.url", get_settings().sqlalchemy_url.replace("%", "%%"))
     head = ScriptDirectory.from_config(cfg).get_current_head()
     current = db.execute(text("SELECT version_num FROM alembic_version")).scalar()
     return current == head

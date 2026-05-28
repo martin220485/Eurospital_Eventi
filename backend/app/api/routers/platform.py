@@ -210,7 +210,7 @@ def db_status(db: Session = Depends(get_db)) -> dict:
     from app.core.config import get_settings
 
     cfg = Config("alembic.ini")
-    cfg.set_main_option("sqlalchemy.url", get_settings().sqlalchemy_url)
+    cfg.set_main_option("sqlalchemy.url", get_settings().sqlalchemy_url.replace("%", "%%"))
     script = ScriptDirectory.from_config(cfg)
     head = script.get_current_head()
     current = db.execute(text("SELECT version_num FROM alembic_version")).scalar()
@@ -332,7 +332,8 @@ def db_prepare_target(payload: DbTargetIn, db: Session = Depends(get_db),
     url = _build_url(payload.host, payload.port, payload.db, payload.user, pw)
     try:
         cfg = Config("alembic.ini")
-        cfg.set_main_option("sqlalchemy.url", url)
+        # Escape '%' per ConfigParser interpolation (URL-encoding password con %).
+        cfg.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
         command.upgrade(cfg, "head")
     except Exception as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
