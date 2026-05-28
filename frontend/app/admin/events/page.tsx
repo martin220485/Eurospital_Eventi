@@ -1,32 +1,45 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { Plus, Search } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Loader2, Plus, RotateCw, Search } from "lucide-react";
 import { EventTable, type EventRow } from "@/components/admin/event-table";
 import { api } from "@/lib/admin-api";
+import { useDebounced } from "@/lib/use-debounced";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toaster";
 
 type ListResult = { items: EventRow[]; total: number };
 
 export default function EventsPage() {
-  const [items, setItems] = useState<EventRow[]>([]);
+  const [items, setItems] = useState<EventRow[] | null>(null);
   const [statusFilter, setStatusFilter] = useState("");
   const [q, setQ] = useState("");
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
+  const debouncedQ = useDebounced(q);
 
-  async function load() {
+  const load = useCallback(async (search: string, status: string) => {
+    setError("");
+    setPending(true);
     try {
       const params = new URLSearchParams();
-      if (statusFilter) params.set("status", statusFilter);
-      if (q) params.set("q", q);
+      if (status) params.set("status", status);
+      if (search.trim()) params.set("q", search.trim());
       const res = await api.get<ListResult>(`/events?${params.toString()}`);
       setItems(res.items);
-    } catch (e) { toast.error((e as Error).message); }
-  }
-  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [statusFilter]);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setPending(false);
+    }
+  }, []);
+
+  useEffect(() => { load(debouncedQ, statusFilter); }, [debouncedQ, statusFilter, load]);
 
   async function onAction(id: number, kind: "transition" | "duplicate" | "delete", target?: string) {
     try {
@@ -42,7 +55,7 @@ export default function EventsPage() {
           ? "Evento annullato e iscritti notificati via email"
           : `Stato → ${target}`);
       }
-      await load();
+      await load(debouncedQ, statusFilter);
     } catch (e) { toast.error((e as Error).message); }
   }
 
@@ -72,20 +85,42 @@ export default function EventsPage() {
             <SelectItem value="archived">Archiviato</SelectItem>
           </SelectContent>
         </Select>
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+        <div className="relative max-w-sm flex-1">
+          <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             className="pl-8"
             placeholder="Cerca titolo…"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") load(); }}
+            aria-label="Cerca eventi"
           />
+          {pending && (
+            <Loader2 className="absolute right-2.5 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
+          )}
         </div>
-        <Button variant="outline" onClick={() => load()}>Cerca</Button>
+        {items !== null && (
+          <span className="text-sm text-muted-foreground" aria-live="polite">
+            {items.length} {items.length === 1 ? "evento" : "eventi"}
+          </span>
+        )}
       </div>
 
-      <EventTable items={items} onAction={onAction} />
+      {error ? (
+        <Card>
+          <CardContent className="flex flex-col items-start gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-destructive">Impossibile caricare gli eventi. {error}</p>
+            <Button variant="outline" size="sm" onClick={() => load(debouncedQ, statusFilter)}>
+              <RotateCw className="h-4 w-4" /> Riprova
+            </Button>
+          </CardContent>
+        </Card>
+      ) : items === null ? (
+        <div className="space-y-2">
+          {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-14" />)}
+        </div>
+      ) : (
+        <EventTable items={items} onAction={onAction} />
+      )}
     </div>
   );
 }

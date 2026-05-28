@@ -2,10 +2,11 @@
 
 import { use, useEffect, useState } from "react";
 import {
-  ArrowLeft, Award, CalendarDays, CalendarPlus, Clock, Download, FileText,
-  ListChecks, MapPin, Monitor, Paperclip, Tag, Users,
+  ArrowLeft, Award, CalendarDays, CalendarPlus, Check, Clock, Download, FileText,
+  ListChecks, MapPin, Monitor, Paperclip, RotateCw, Tag, Users,
 } from "lucide-react";
 import Link from "next/link";
+import DOMPurify from "isomorphic-dompurify";
 import { RegisterForm } from "@/components/app/register-form";
 import { RegistrationReceipt } from "@/components/app/registration-receipt";
 import { api } from "@/lib/admin-api";
@@ -21,10 +22,12 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
   const eventId = Number(id);
   const [ev, setEv] = useState<CatalogEventDetail | null>(null);
   const [result, setResult] = useState<{ id: number; status: string } | null>(null);
+  const [error, setError] = useState("");
 
   async function load() {
+    setError("");
     try { setEv(await catalogApi.detail(eventId)); }
-    catch (e) { toast.error((e as Error).message); }
+    catch (e) { setError((e as Error).message); }
   }
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [eventId]);
 
@@ -41,13 +44,32 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
     } catch (e) { toast.error((e as Error).message); }
   }
 
-  if (!ev) return (
-    <div className="space-y-4">
-      <Skeleton className="h-8 w-2/3" />
-      <Skeleton className="h-5 w-1/2" />
-      <Skeleton className="h-72" />
-    </div>
-  );
+  if (!ev) {
+    if (error) {
+      return (
+        <div className="space-y-4">
+          <Button variant="ghost" size="sm" asChild className="-ml-2">
+            <Link href="/app/catalog"><ArrowLeft className="h-4 w-4" /> Torna al catalogo</Link>
+          </Button>
+          <Card>
+            <CardContent className="flex flex-col items-start gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-destructive">Impossibile caricare l&apos;evento. {error}</p>
+              <Button variant="outline" size="sm" onClick={load}>
+                <RotateCw className="h-4 w-4" /> Riprova
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-2/3" />
+        <Skeleton className="h-5 w-1/2" />
+        <Skeleton className="h-72" />
+      </div>
+    );
+  }
 
   const ModeIcon = ev.mode === "online" ? Monitor : MapPin;
   const start = new Date(ev.start_at);
@@ -75,7 +97,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
         <Link href="/app/catalog"><ArrowLeft className="h-4 w-4" /> Torna al catalogo</Link>
       </Button>
 
-      <div className="overflow-hidden rounded-xl border bg-gradient-to-r from-brand-50 via-white to-brand-50">
+      <div className="overflow-hidden rounded-xl border bg-brand-50/60">
         <div className="h-2" style={{ background: ev.category_color ?? "#3a7fb3" }} />
         <div className="p-5 sm:p-7">
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -144,7 +166,10 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
             {ev.description && (
               <div>
                 <h3 className="mb-1 text-sm font-semibold">Descrizione</h3>
-                <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: ev.description }} />
+                <div
+                  className="prose prose-sm max-w-none"
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(ev.description) }}
+                />
               </div>
             )}
 
@@ -157,7 +182,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                   {ev.attachments.map((a) => (
                     <li key={a.id}>
                       <a href={a.download_url}
-                         className="flex items-center gap-2 rounded-md border bg-white px-3 py-2 text-sm hover:bg-accent">
+                         className="flex items-center gap-2 rounded-md border bg-card px-3 py-2 text-sm hover:bg-accent">
                         <FileText className="h-4 w-4 text-muted-foreground" />
                         <span className="flex-1 truncate">{a.filename}</span>
                         {a.size_bytes && (
@@ -188,7 +213,14 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                   <span className="text-muted-foreground">Iscritti</span>
                   <span className="font-medium">{ev.confirmed_count} / {ev.capacity}</span>
                 </div>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-brand-50">
+                <div
+                  className="h-2 w-full overflow-hidden rounded-full bg-brand-50"
+                  role="progressbar"
+                  aria-valuenow={capPct}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label={`Capienza: ${ev.confirmed_count} su ${ev.capacity} iscritti`}
+                >
                   <div className="h-full bg-brand-500" style={{ width: `${capPct}%` }} />
                 </div>
                 <div className="flex items-baseline justify-between text-xs text-muted-foreground">
@@ -218,8 +250,9 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
               </p>
             )}
             {ev.cancellation_allowed && (
-              <p className="text-xs text-muted-foreground">
-                ✓ Annullamento consentito
+              <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                <Check className="h-3 w-3 text-emerald-600" aria-hidden />
+                Annullamento consentito
                 {ev.cancellation_deadline_at &&
                   ` entro ${new Date(ev.cancellation_deadline_at).toLocaleDateString("it-IT")}`}
               </p>

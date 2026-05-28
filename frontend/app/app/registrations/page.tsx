@@ -2,23 +2,27 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Award, CalendarOff, History, Ticket, XCircle } from "lucide-react";
+import { Award, CalendarOff, History, RotateCw, Ticket, XCircle } from "lucide-react";
 import { RegistrationReceipt } from "@/components/app/registration-receipt";
 import { api } from "@/lib/admin-api";
 import { catalogApi, type MyEvent } from "@/lib/catalog-api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/toaster";
 
 export default function MyRegistrationsPage() {
   const [items, setItems] = useState<MyEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   async function load() {
+    setError("");
+    setLoading(true);
     try { setItems(await catalogApi.myEvents()); }
-    catch (e) { toast.error((e as Error).message); }
+    catch (e) { setError((e as Error).message); }
     finally { setLoading(false); }
   }
   useEffect(() => { load(); }, []);
@@ -39,7 +43,7 @@ export default function MyRegistrationsPage() {
 
   function row(m: MyEvent, opts: { qr?: boolean; cancel?: boolean }) {
     return (
-      <li key={m.registration_id} className="rounded-lg border bg-white p-4">
+      <li key={m.registration_id} className="rounded-lg border bg-card p-4">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="min-w-0">
             <Link href={`/app/events/${m.event_id}`} className="font-medium hover:text-brand-700">
@@ -84,6 +88,14 @@ export default function MyRegistrationsPage() {
     );
   }
 
+  function SkeletonList() {
+    return (
+      <div className="space-y-3">
+        {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-20" />)}
+      </div>
+    );
+  }
+
   function emptySection(icon: typeof Ticket, msg: string) {
     const Icon = icon;
     return (
@@ -103,28 +115,39 @@ export default function MyRegistrationsPage() {
         <p className="text-sm text-muted-foreground">Gestisci futuri, passati e annullati</p>
       </div>
 
-      <Tabs defaultValue="future">
-        <TabsList>
-          <TabsTrigger value="future">Futuri ({future.length})</TabsTrigger>
-          <TabsTrigger value="past">Passati ({past.length})</TabsTrigger>
-          <TabsTrigger value="cancelled">Annullati ({cancelled.length})</TabsTrigger>
-        </TabsList>
-        <TabsContent value="future">
-          {loading ? null : future.length === 0
-            ? emptySection(Ticket, "Nessuna iscrizione futura.")
-            : <ul className="space-y-3">{future.map((m) => row(m, { qr: true, cancel: true }))}</ul>}
-        </TabsContent>
-        <TabsContent value="past">
-          {loading ? null : past.length === 0
-            ? emptySection(History, "Nessuna iscrizione passata.")
-            : <ul className="space-y-3">{past.map((m) => row(m, {}))}</ul>}
-        </TabsContent>
-        <TabsContent value="cancelled">
-          {loading ? null : cancelled.length === 0
-            ? emptySection(CalendarOff, "Nessuna iscrizione annullata.")
-            : <ul className="space-y-3">{cancelled.map((m) => row(m, {}))}</ul>}
-        </TabsContent>
-      </Tabs>
+      {error ? (
+        <Card>
+          <CardContent className="flex flex-col items-start gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-destructive">Impossibile caricare le iscrizioni. {error}</p>
+            <Button variant="outline" size="sm" onClick={load}>
+              <RotateCw className="h-4 w-4" /> Riprova
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <Tabs defaultValue="future">
+          <TabsList>
+            <TabsTrigger value="future">Futuri ({future.length})</TabsTrigger>
+            <TabsTrigger value="past">Passati ({past.length})</TabsTrigger>
+            <TabsTrigger value="cancelled">Annullati ({cancelled.length})</TabsTrigger>
+          </TabsList>
+          <TabsContent value="future">
+            {loading ? <SkeletonList /> : future.length === 0
+              ? emptySection(Ticket, "Nessuna iscrizione futura.")
+              : <ul className="space-y-3">{future.map((m) => row(m, { qr: true, cancel: true }))}</ul>}
+          </TabsContent>
+          <TabsContent value="past">
+            {loading ? <SkeletonList /> : past.length === 0
+              ? emptySection(History, "Nessuna iscrizione passata.")
+              : <ul className="space-y-3">{past.map((m) => row(m, {}))}</ul>}
+          </TabsContent>
+          <TabsContent value="cancelled">
+            {loading ? <SkeletonList /> : cancelled.length === 0
+              ? emptySection(CalendarOff, "Nessuna iscrizione annullata.")
+              : <ul className="space-y-3">{cancelled.map((m) => row(m, {}))}</ul>}
+          </TabsContent>
+        </Tabs>
+      )}
     </div>
   );
 }

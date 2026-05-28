@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Plus, Search, UserPlus } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Loader2, Plus, RotateCw, Search, UserPlus } from "lucide-react";
 import { usersApi, type UserItem } from "@/lib/admin-extra-api";
+import { useDebounced } from "@/lib/use-debounced";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,21 +11,30 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/components/ui/toaster";
 
 export default function UsersPage() {
-  const [items, setItems] = useState<UserItem[]>([]);
+  const [items, setItems] = useState<UserItem[] | null>(null);
   const [q, setQ] = useState("");
   const [roles, setRoles] = useState<string[]>([]);
   const [open, setOpen] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
   const [form, setForm] = useState({ email: "", username: "", password: "", full_name: "", department: "", role: "" });
+  const debouncedQ = useDebounced(q);
 
-  async function load() {
-    try { setItems((await usersApi.list({ q: q || undefined })).items); }
-    catch (e) { toast.error((e as Error).message); }
-  }
-  useEffect(() => { load(); usersApi.listRoles().then(setRoles).catch(() => {}); /* eslint-disable-next-line */ }, []);
+  const load = useCallback(async (search: string) => {
+    setError("");
+    setPending(true);
+    try { setItems((await usersApi.list({ q: search.trim() || undefined })).items); }
+    catch (e) { setError((e as Error).message); }
+    finally { setPending(false); }
+  }, []);
+
+  useEffect(() => { load(debouncedQ); }, [debouncedQ, load]);
+  useEffect(() => { usersApi.listRoles().then(setRoles).catch(() => {}); }, []);
 
   async function create(e: React.FormEvent) {
     e.preventDefault();
@@ -38,15 +48,17 @@ export default function UsersPage() {
       toast.success("Utente creato");
       setOpen(false);
       setForm({ email: "", username: "", password: "", full_name: "", department: "", role: "" });
-      load();
+      load(debouncedQ);
     } catch (e) { toast.error((e as Error).message); }
   }
 
   async function toggleActive(u: UserItem) {
+    const action = u.is_active ? "Disattivare" : "Riattivare";
+    if (!window.confirm(`${action} l'utente ${u.full_name || u.username}?`)) return;
     try {
       await usersApi.update(u.id, { is_active: !u.is_active });
       toast.success(u.is_active ? "Disattivato" : "Riattivato");
-      load();
+      load(debouncedQ);
     } catch (e) { toast.error((e as Error).message); }
   }
 
@@ -115,14 +127,35 @@ export default function UsersPage() {
 
       <div className="flex items-center gap-2">
         <div className="relative max-w-sm flex-1">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input className="pl-8" placeholder="Cerca email/username/nome…" value={q}
                  onChange={(e) => setQ(e.target.value)}
-                 onKeyDown={(e) => { if (e.key === "Enter") load(); }} />
+                 aria-label="Cerca utenti" />
+          {pending && (
+            <Loader2 className="absolute right-2.5 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
+          )}
         </div>
-        <Button variant="outline" onClick={load}>Cerca</Button>
+        {items !== null && (
+          <span className="text-sm text-muted-foreground" aria-live="polite">
+            {items.length} {items.length === 1 ? "utente" : "utenti"}
+          </span>
+        )}
       </div>
 
+      {error ? (
+        <Card>
+          <CardContent className="flex flex-col items-start gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-destructive">Impossibile caricare gli utenti. {error}</p>
+            <Button variant="outline" size="sm" onClick={() => load(debouncedQ)}>
+              <RotateCw className="h-4 w-4" /> Riprova
+            </Button>
+          </CardContent>
+        </Card>
+      ) : items === null ? (
+        <div className="space-y-2">
+          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-14" />)}
+        </div>
+      ) : (
       <Card className="overflow-hidden">
         <Table>
           <TableHeader>
@@ -164,6 +197,7 @@ export default function UsersPage() {
           </TableBody>
         </Table>
       </Card>
+      )}
     </div>
   );
 }
