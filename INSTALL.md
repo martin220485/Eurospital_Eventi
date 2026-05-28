@@ -92,6 +92,15 @@ Sessione via cookie httpOnly (route handler Next `/api/session/*`); i file caric
 - Visibility eventi ristretti: utenti AD con `ldap_groups`/`department` matchante un record di `event_visibility` (mode=restricted) vedono l'evento nel catalogo; utenti locali continuano a non vedere gli eventi ristretti (compat F5).
 - Permesso `users.ldap_sync` richiesto per tutti gli endpoint admin LDAP. Out of scope F8: OIDC, SAML, sync schedulato, custom group→role mapping oltre ai due slot.
 
+## Sicurezza & GDPR (F9)
+- **Rate limit** auth: 10 tentativi / 15 min per IP su `/api/auth/login` e `/api/auth/refresh` (config `RATE_LIMIT_AUTH_MAX`, `RATE_LIMIT_AUTH_WINDOW`). Sliding-window Redis (riusa il broker F6). Se Redis non risponde → fail-open con warning a log.
+- **Security headers** globali su ogni response: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: geolocation=(), microphone=(), camera=()`, `Content-Security-Policy: default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; frame-ancestors 'none'`. HSTS gestito a livello NPM upstream.
+- **Audit log**: tabella `audit_logs(actor_id, action, target_type, target_id, ip, user_agent, payload, created_at)`. Eventi auditati (espandibile): `auth.login.success`, `auth.login.fail`, `auth.refresh`, `auth.refresh.fail`, `auth.logout`, `user.anonymize`. Lista admin: `/admin/audit` (permesso `users.admin`).
+- **GDPR export self** (Art. 15): `GET /api/me/data-export` ritorna JSON con profilo, iscrizioni+answers, log notifiche (ultimi 100), audit log (ultimi 200). Pulsante "Esporta i miei dati" su `/app/profile`.
+- **GDPR anonymize** (Art. 17): `POST /api/admin/users/{id}/anonymize` rimuove PII (email/username/full_name/department/ldap_*) sostituendo con placeholder e disattiva l'account; le iscrizioni e gli audit log restano. Disponibile da `/admin/audit` (form). Permesso `users.admin`.
+- **Retention**: variabile `AUDIT_LOG_RETENTION_DAYS` (default 730). Pulizia manuale: `uv run python -m app.cli cleanup-audit-logs [--days N]` (eseguibile via cron).
+- Consensi GDPR già supportati dai form di iscrizione (F4) tramite campi custom `consent_*`.
+
 ## Test
 - Backend: `cd backend && TEST_DATABASE_URL=mysql+pymysql://eventi:eventi@127.0.0.1:3307/eventi_test uv run pytest`
 - Frontend: `cd frontend && pnpm test && pnpm build`
