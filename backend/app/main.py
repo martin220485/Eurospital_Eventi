@@ -3,8 +3,8 @@ import logging
 from fastapi import FastAPI, Request
 
 from app.api.routers import (
-    attachments, auth, catalog, categories, checkin, events, ldap, notifications, registrations,
-    reports, setup,
+    attachments, auth, catalog, categories, checkin, events, ldap, me, notifications,
+    registrations, reports, setup, users,
 )
 from app.core.config import get_settings
 from app.core.security_headers import RateLimitMiddleware, SecurityHeadersMiddleware
@@ -47,6 +47,8 @@ app.include_router(catalog.router)
 app.include_router(notifications.router)
 app.include_router(reports.router)
 app.include_router(ldap.router)
+app.include_router(me.router)
+app.include_router(users.router)
 
 
 @app.on_event("startup")
