@@ -53,6 +53,17 @@ app.include_router(users.router)
 
 
 @app.on_event("startup")
+def _apply_db_override() -> None:
+    """Se in DB c'è un override di connessione, swappa l'engine globale."""
+    try:
+        from app.db.session import apply_db_override_from_settings
+        if apply_db_override_from_settings():
+            logger.info("DB engine switched to override target from platform_settings")
+    except Exception as exc:
+        logger.warning("DB override apply failed: %s", exc)
+
+
+@app.on_event("startup")
 def _log_setup_token() -> None:
     # Surface the bootstrap token once on boot so the operator can open /setup.
     # Skipped when setup is already complete to avoid leaking it in steady state.

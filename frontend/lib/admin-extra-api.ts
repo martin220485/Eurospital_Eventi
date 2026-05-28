@@ -62,6 +62,17 @@ export const platformApi = {
   }>("/admin/platform/db"),
   dbMigrate: () => api.post<{ revision: string; tables: string[] }>("/admin/platform/db/migrate"),
   dbRebuild: () => api.post<{ revision: string; tables: string[] }>("/admin/platform/db/rebuild-objects"),
+  dbGetTarget: () => api.get<{
+    source: string; host: string | null; port: number; db: string;
+    user: string | null; has_password: boolean;
+  }>("/admin/platform/db/target"),
+  dbTestTarget: (body: { host: string; port: number; db: string; user: string; password?: string }) =>
+    api.post<{ ok: boolean; error?: string }>("/admin/platform/db/test-target", body),
+  dbPrepareTarget: (body: { host: string; port: number; db: string; user: string; password?: string }) =>
+    api.post<{ ok: boolean; message?: string }>("/admin/platform/db/prepare-target", body),
+  dbSwitch: (body: { host: string; port: number; db: string; user: string; password?: string }) =>
+    api.post<{ ok: boolean; warning?: string }>("/admin/platform/db/switch", body),
+  dbResetOverride: () => api.post<{ ok: boolean }>("/admin/platform/db/reset-override"),
 };
 
 // SMTP settings

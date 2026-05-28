@@ -264,6 +264,194 @@ def db_rebuild_objects(request: Request, db: Session = Depends(get_db),
     return res
 
 
+# ----- DB target switch (cambia puntamento) -----
+
+class DbTargetIn(BaseModel):
+    host: str
+    port: int = 3306
+    db: str
+    user: str
+    password: str | None = None  # vuoto = mantieni quella in override esistente
+
+
+def _build_url(host: str, port: int, db: str, user: str, password: str) -> str:
+    from urllib.parse import quote_plus
+    return f"mysql+pymysql://{quote_plus(user)}:{quote_plus(password)}@{host}:{port}/{db}"
+
+
+def _current_password_from_override(db: Session, fallback_password: str | None) -> str:
+    """Se password non passata, prova a decifrare quella salvata; altrimenti usa quella di env."""
+    from app.core.crypto import decrypt
+    if fallback_password:
+        return fallback_password
+    cfg = settings_service.get_platform(db)
+    if cfg.db_override_encrypted:
+        try:
+            url = decrypt(cfg.db_override_encrypted)
+            # estrai password dall'URL
+            from urllib.parse import urlparse, unquote
+            p = urlparse(url)
+            if p.password:
+                return unquote(p.password)
+        except Exception:
+            pass
+    from app.core.config import get_settings as _gs
+    return _gs().mysql_password
+
+
+@router.post(
+    "/db/test-target",
+    dependencies=[Depends(require_permission(_PERM))],
+)
+def db_test_target(payload: DbTargetIn, db: Session = Depends(get_db)) -> dict:
+    """Prova la connessione al target senza salvare nulla."""
+    from sqlalchemy import create_engine, text as _text
+    pw = _current_password_from_override(db, payload.password)
+    url = _build_url(payload.host, payload.port, payload.db, payload.user, pw)
+    try:
+        eng = create_engine(url, pool_pre_ping=True)
+        with eng.connect() as c:
+            c.execute(_text("SELECT 1"))
+        eng.dispose()
+        return {"ok": True}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
+
+
+@router.post(
+    "/db/prepare-target",
+    dependencies=[Depends(require_permission(_PERM))],
+)
+def db_prepare_target(payload: DbTargetIn, db: Session = Depends(get_db),
+                      actor: User = Depends(get_current_user)) -> dict:
+    """Applica le migrazioni Alembic al target indicato (senza switchare)."""
+    from alembic.config import Config
+    from alembic import command
+
+    pw = _current_password_from_override(db, payload.password)
+    url = _build_url(payload.host, payload.port, payload.db, payload.user, pw)
+    try:
+        cfg = Config("alembic.ini")
+        cfg.set_main_option("sqlalchemy.url", url)
+        command.upgrade(cfg, "head")
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+    audit_service.log(db, action="db.prepare_target", actor_id=actor.id,
+                      target_type="db", target_id=1,
+                      payload={"host": payload.host, "port": payload.port, "db": payload.db})
+    db.commit()
+    return {"ok": True, "message": "Migrazioni applicate sul target"}
+
+
+@router.post(
+    "/db/switch",
+    dependencies=[Depends(require_permission(_PERM))],
+)
+def db_switch(payload: DbTargetIn, request: Request, db: Session = Depends(get_db),
+              actor: User = Depends(get_current_user)) -> dict:
+    """Salva i nuovi parametri come override cifrato e ricarica l'engine globale.
+
+    Le richieste in volo terminano col vecchio engine; quelle nuove usano il
+    nuovo target. Worker/beat NON rileggono runtime — serve restart container.
+    """
+    from app.core.crypto import encrypt
+    from app.db import session as db_session
+
+    pw = _current_password_from_override(db, payload.password)
+    url = _build_url(payload.host, payload.port, payload.db, payload.user, pw)
+    # ping sul target prima di committarsi
+    from sqlalchemy import create_engine, text as _text
+    try:
+        eng = create_engine(url, pool_pre_ping=True)
+        with eng.connect() as c:
+            c.execute(_text("SELECT 1"))
+        eng.dispose()
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"Target non raggiungibile: {exc}")
+
+    # Persist override + audit (SU DB CORRENTE, prima del swap)
+    cfg = settings_service.get_platform(db)
+    cfg.db_override_encrypted = encrypt(url)
+    db.flush()
+    ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (
+        request.client.host if request.client else ""
+    )
+    audit_service.log(db, action="db.switch", actor_id=actor.id,
+                      target_type="db", target_id=1, ip=ip,
+                      payload={"host": payload.host, "port": payload.port, "db": payload.db})
+    db.commit()
+
+    # Swap engine globale (sessioni in volo finiscono col vecchio)
+    try:
+        db_session.swap_engine(url)
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Swap engine fallito (target salvato): {exc}")
+    return {
+        "ok": True,
+        "warning": "Worker/beat usano ancora la vecchia connessione fino al restart container.",
+    }
+
+
+@router.post(
+    "/db/reset-override",
+    dependencies=[Depends(require_permission(_PERM))],
+)
+def db_reset_override(request: Request, db: Session = Depends(get_db),
+                      actor: User = Depends(get_current_user)) -> dict:
+    """Rimuove l'override e torna ai parametri di .env (richiede restart)."""
+    cfg = settings_service.get_platform(db)
+    cfg.db_override_encrypted = None
+    db.flush()
+    ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (
+        request.client.host if request.client else ""
+    )
+    audit_service.log(db, action="db.reset_override", actor_id=actor.id,
+                      target_type="db", target_id=1, ip=ip)
+    db.commit()
+    # rifa swap su URL di env
+    from app.core.config import get_settings as _gs
+    from app.db import session as db_session
+    try:
+        db_session.swap_engine(_gs().sqlalchemy_url)
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Reset engine fallito: {exc}")
+    return {"ok": True}
+
+
+@router.get(
+    "/db/target",
+    dependencies=[Depends(require_permission(_PERM))],
+)
+def db_get_target(db: Session = Depends(get_db)) -> dict:
+    """Mostra parametri attivi (host/port/db/user, password mascherata)."""
+    from urllib.parse import urlparse, unquote
+    from app.core.crypto import decrypt
+    cfg = settings_service.get_platform(db)
+    url = None
+    source = "env"
+    if cfg.db_override_encrypted:
+        try:
+            url = decrypt(cfg.db_override_encrypted)
+            source = "override"
+        except Exception:
+            url = None
+    if url is None:
+        from app.core.config import get_settings as _gs
+        url = _gs().sqlalchemy_url
+    p = urlparse(url)
+    return {
+        "source": source,
+        "host": p.hostname,
+        "port": p.port or 3306,
+        "db": (p.path or "").lstrip("/"),
+        "user": unquote(p.username) if p.username else None,
+        "has_password": bool(p.password),
+    }
+
+
 @router.post(
     "/smtp/test",
     dependencies=[Depends(require_permission(_PERM))],
