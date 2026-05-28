@@ -1,12 +1,12 @@
 """Platform settings & system status (F13)."""
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db, require_permission
 from app.models import PlatformSettings, User
-from app.services import audit_service, settings_service
+from app.services import audit_service, settings_service, setup_service
 
 router = APIRouter(prefix="/api/admin/platform", tags=["platform"])
 
@@ -129,3 +129,87 @@ def system_status(db: Session = Depends(get_db)) -> dict:
         "recent_failed_notifications": last_errors,
         "audit_retention_days": get_settings().audit_log_retention_days,
     }
+
+
+# ----- SMTP admin -----
+
+class SmtpSettingsIn(BaseModel):
+    host: str | None = None
+    port: int | None = None
+    tls_mode: str = "starttls"
+    from_address: str | None = None
+    from_name: str | None = None
+    username: str | None = None
+    password: str | None = None
+
+
+class SmtpSettingsOut(BaseModel):
+    host: str | None
+    port: int | None
+    tls_mode: str
+    from_address: str | None
+    from_name: str | None
+    username: str | None
+    has_password: bool
+
+
+@router.get(
+    "/smtp",
+    response_model=SmtpSettingsOut,
+    dependencies=[Depends(require_permission(_PERM))],
+)
+def get_smtp(db: Session = Depends(get_db)) -> SmtpSettingsOut:
+    cfg = settings_service.get_smtp(db)
+    return SmtpSettingsOut(
+        host=cfg.host, port=cfg.port, tls_mode=cfg.tls_mode or "starttls",
+        from_address=cfg.from_address, from_name=cfg.from_name,
+        username=cfg.username, has_password=bool(cfg.password_encrypted),
+    )
+
+
+@router.put(
+    "/smtp",
+    response_model=SmtpSettingsOut,
+    dependencies=[Depends(require_permission(_PERM))],
+)
+def save_smtp(payload: SmtpSettingsIn, request: Request, db: Session = Depends(get_db),
+              actor: User = Depends(get_current_user)) -> SmtpSettingsOut:
+    settings_service.save_smtp(
+        db, host=payload.host, port=payload.port, tls_mode=payload.tls_mode,
+        from_address=payload.from_address, from_name=payload.from_name,
+        username=payload.username, password=payload.password,
+    )
+    audit_service.log(db, action="smtp.settings.update", actor_id=actor.id,
+                      target_type="smtp", target_id=1,
+                      payload={k: v for k, v in payload.model_dump().items() if k != "password"})
+    db.commit()
+    return get_smtp(db=db)
+
+
+class SmtpTestIn(BaseModel):
+    host: str
+    port: int
+    tls_mode: str = "starttls"
+    username: str | None = None
+    password: str | None = None
+    from_address: str
+
+
+@router.post(
+    "/smtp/test",
+    dependencies=[Depends(require_permission(_PERM))],
+)
+def test_smtp(payload: SmtpTestIn, db: Session = Depends(get_db)) -> dict:
+    # se password vuota e c'è già impostata, usa quella decriptata
+    pw = payload.password
+    if not pw:
+        cfg = settings_service.get_smtp(db)
+        if cfg.password_encrypted:
+            from app.services import notification_service
+            pw = notification_service.decrypt_smtp_password(cfg)
+    res = setup_service.test_smtp(
+        host=payload.host, port=payload.port, tls_mode=payload.tls_mode,
+        username=payload.username, password=pw or "",
+        from_address=payload.from_address,
+    )
+    return res

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Activity, Calendar, LayoutDashboard, ListChecks, Mail, QrCode, Server,
+  Activity, AtSign, Calendar, LayoutDashboard, ListChecks, Mail, QrCode, Server,
   Settings, ShieldAlert, Tag, Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -15,8 +15,9 @@ const NAV = [
   { href: "/admin/checkin", label: "Check-in", icon: QrCode },
   { href: "/admin/users", label: "Utenti", icon: Users },
   { href: "/admin/notifications", label: "Notifiche", icon: Mail },
-  { href: "/admin/settings/ldap", label: "AD / LDAP", icon: Server },
   { href: "/admin/settings/platform", label: "Configurazione", icon: Settings },
+  { href: "/admin/settings/smtp", label: "SMTP", icon: AtSign },
+  { href: "/admin/settings/ldap", label: "AD / LDAP", icon: Server },
   { href: "/admin/system", label: "Stato sistema", icon: Activity },
   { href: "/admin/audit", label: "Audit & GDPR", icon: ShieldAlert },
 ] as const;

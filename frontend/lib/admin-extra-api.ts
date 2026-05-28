@@ -55,6 +55,28 @@ export const platformApi = {
   }>("/admin/platform/status"),
 };
 
+// SMTP settings
+export type SmtpSettings = {
+  host: string | null;
+  port: number | null;
+  tls_mode: string;
+  from_address: string | null;
+  from_name: string | null;
+  username: string | null;
+  has_password: boolean;
+};
+
+export const smtpApi = {
+  getSettings: () => api.get<SmtpSettings>("/admin/platform/smtp"),
+  saveSettings: (body: Partial<SmtpSettings> & { password?: string }) =>
+    api.put<SmtpSettings>("/admin/platform/smtp", body),
+  test: (body: {
+    host: string; port: number; tls_mode: string;
+    username?: string | null; password?: string | null;
+    from_address: string;
+  }) => api.post<{ ok: boolean; error?: string }>("/admin/platform/smtp/test", body),
+};
+
 // Broadcast notifications
 export const broadcastApi = {
   send: (body: {
