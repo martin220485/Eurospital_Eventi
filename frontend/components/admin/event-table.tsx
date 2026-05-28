@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Copy } from "lucide-react";
+import { Copy, Trash2 } from "lucide-react";
 import { StatusBadge } from "./status-badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -20,7 +20,10 @@ const NEXT_ACTIONS: Record<string, { label: string; target: string; danger?: boo
 
 export function EventTable({
   items, onAction,
-}: { items: EventRow[]; onAction: (id: number, kind: "transition" | "duplicate", target?: string) => void }) {
+}: {
+  items: EventRow[];
+  onAction: (id: number, kind: "transition" | "duplicate" | "delete", target?: string) => void;
+}) {
   return (
     <Card className="overflow-hidden">
       <Table>
@@ -56,6 +59,14 @@ export function EventTable({
                 <div className="flex flex-wrap justify-end gap-1">
                   <Button size="sm" variant="ghost" onClick={() => onAction(e.id, "duplicate")}>
                     <Copy className="h-3.5 w-3.5" /> Duplica
+                  </Button>
+                  <Button size="sm" variant="ghost"
+                          className="text-destructive hover:bg-destructive/10"
+                          onClick={() => {
+                            if (!window.confirm("Eliminare l'evento?\n\nSe non ci sono iscritti viene cancellato definitivamente.\nSe ci sono iscritti l'eliminazione fallisce: usa 'Annulla' per notificarli.")) return;
+                            onAction(e.id, "delete");
+                          }}>
+                    <Trash2 className="h-3.5 w-3.5" /> Elimina
                   </Button>
                   {(NEXT_ACTIONS[e.status] ?? []).map((a) => (
                     <Button

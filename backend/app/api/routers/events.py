@@ -91,6 +91,25 @@ def transition_event(event_id: int, payload: EventTransition, db: Session = Depe
         code = status.HTTP_404_NOT_FOUND if str(exc) == "not found" else status.HTTP_422_UNPROCESSABLE_ENTITY
         raise HTTPException(status_code=code, detail=str(exc))
     db.commit()
+    # Se evento annullato: notifica tutti gli iscritti attivi
+    if payload.target == "cancelled":
+        from sqlalchemy import select
+        from app.models import Registration
+        from app.services import notification_service
+        regs = db.scalars(
+            select(Registration).where(
+                Registration.event_id == event_id,
+                Registration.status.in_(("confirmed", "waitlisted")),
+            )
+        ).all()
+        # marca registrazioni come cancellate
+        for r in regs:
+            r.status = "cancelled"
+        db.commit()
+        for r in regs:
+            notification_service.enqueue_registration_notification(
+                db, "event_cancelled", r.id,
+            )
     return EventOut.model_validate(ev)
 
 

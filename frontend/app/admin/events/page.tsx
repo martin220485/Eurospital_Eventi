@@ -28,14 +28,19 @@ export default function EventsPage() {
   }
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [statusFilter]);
 
-  async function onAction(id: number, kind: "transition" | "duplicate", target?: string) {
+  async function onAction(id: number, kind: "transition" | "duplicate" | "delete", target?: string) {
     try {
       if (kind === "duplicate") {
         await api.post(`/events/${id}/duplicate`);
         toast.success("Evento duplicato");
+      } else if (kind === "delete") {
+        await api.del(`/events/${id}`);
+        toast.success("Evento eliminato");
       } else {
         await api.post(`/events/${id}/transition`, { target });
-        toast.success(`Stato → ${target}`);
+        toast.success(target === "cancelled"
+          ? "Evento annullato e iscritti notificati via email"
+          : `Stato → ${target}`);
       }
       await load();
     } catch (e) { toast.error((e as Error).message); }

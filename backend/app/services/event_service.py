@@ -45,9 +45,21 @@ def update(db: Session, event_id: int, data: dict) -> Event:
 
 
 def delete(db: Session, event_id: int) -> None:
+    """Cancella un evento solo se nessuno è iscritto.
+    Con iscrizioni attive bisogna usare la transizione → cancelled (che notifica)."""
+    from sqlalchemy import select
+    from app.models import Registration
     ev = get(db, event_id)
-    if ev.status != "draft":
-        raise EventError("only draft events can be deleted")
+    has = db.scalar(
+        select(Registration.id).where(
+            Registration.event_id == event_id,
+            Registration.status.in_(("pending", "confirmed", "waitlisted", "attended")),
+        ).limit(1)
+    )
+    if has:
+        raise EventError(
+            "ci sono iscritti: usa 'Annulla evento' invece di eliminare"
+        )
     db.delete(ev)
     db.flush()
 

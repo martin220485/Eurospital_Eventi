@@ -46,6 +46,7 @@ def test_notification_templates_seeded(engine):
     with engine.connect() as c:
         rows = c.execute(text("SELECT code FROM notification_templates ORDER BY code")).scalars().all()
     assert list(rows) == [
+        "event_cancelled",
         "event_reminder",
         "registration_cancelled",
         "registration_confirmed",
