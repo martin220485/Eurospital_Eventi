@@ -1,24 +1,12 @@
 # syntax=docker/dockerfile:1
-
-FROM node:20-slim AS deps
-RUN corepack enable
-WORKDIR /app
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
-
-FROM node:20-slim AS build
-RUN corepack enable
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-RUN pnpm build
-
+# Runtime-only: build (pnpm build) eseguito FUORI sul host perché in questo
+# ambiente Tailwind v3 non emette CSS dentro node:20-slim. Vedi scripts/build-prod.sh.
 FROM node:20-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production \
     PORT=3000
-COPY --from=build /app/.next/standalone ./
-COPY --from=build /app/.next/static ./.next/static
-COPY --from=build /app/public ./public
+COPY .next/standalone/ ./
+COPY .next/static ./.next/static
+COPY public ./public
 EXPOSE 3000
 CMD ["node", "server.js"]
