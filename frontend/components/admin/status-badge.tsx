@@ -1,11 +1,14 @@
-const COLORS: Record<string, string> = {
-  draft: "bg-gray-100 text-gray-700",
-  published: "bg-green-100 text-green-700",
-  suspended: "bg-yellow-100 text-yellow-800",
-  cancelled: "bg-red-100 text-red-700",
-  archived: "bg-blue-100 text-blue-700",
+import { Badge } from "@/components/ui/badge";
+
+const MAP: Record<string, { label: string; variant: "default" | "secondary" | "success" | "warning" | "destructive" | "outline" }> = {
+  draft: { label: "Bozza", variant: "secondary" },
+  published: { label: "Pubblicato", variant: "success" },
+  suspended: { label: "Sospeso", variant: "warning" },
+  cancelled: { label: "Annullato", variant: "destructive" },
+  archived: { label: "Archiviato", variant: "outline" },
 };
 
 export function StatusBadge({ status }: { status: string }) {
-  return <span className={`rounded px-2 py-0.5 text-xs ${COLORS[status] ?? "bg-gray-100"}`}>{status}</span>;
+  const m = MAP[status] ?? { label: status, variant: "secondary" as const };
+  return <Badge variant={m.variant}>{m.label}</Badge>;
 }
