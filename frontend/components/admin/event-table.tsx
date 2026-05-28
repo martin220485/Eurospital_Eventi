@@ -1,5 +1,9 @@
 import Link from "next/link";
+import { Copy } from "lucide-react";
 import { StatusBadge } from "./status-badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export type EventRow = {
   id: number; title: string; status: string;
@@ -18,34 +22,61 @@ export function EventTable({
   items, onAction,
 }: { items: EventRow[]; onAction: (id: number, kind: "transition" | "duplicate", target?: string) => void }) {
   return (
-    <table className="w-full rounded border bg-white text-sm">
-      <thead className="bg-gray-50 text-left">
-        <tr><th className="p-3">Titolo</th><th className="p-3">Stato</th><th className="p-3">Inizio</th><th className="p-3">Azioni</th></tr>
-      </thead>
-      <tbody className="divide-y">
-        {items.map((e) => (
-          <tr key={e.id}>
-            <td className="p-3"><Link className="text-blue-700 hover:underline" href={`/admin/events/${e.id}`}>{e.title}</Link></td>
-            <td className="p-3"><StatusBadge status={e.status} /></td>
-            <td className="p-3">{new Date(e.start_at).toLocaleString("it-IT")}</td>
-            <td className="p-3 space-x-2">
-              <button className="text-blue-700" onClick={() => onAction(e.id, "duplicate")}>Duplica</button>
-              {(NEXT_ACTIONS[e.status] ?? []).map((a) => (
-                <button
-                  key={a.target}
-                  className={a.danger ? "text-red-700" : "text-gray-700"}
-                  onClick={() => {
-                    if (a.danger && !window.confirm(`Confermi: ${a.label}?`)) return;
-                    onAction(e.id, "transition", a.target);
-                  }}
-                >
-                  {a.label}
-                </button>
-              ))}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <Card className="overflow-hidden">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Titolo</TableHead>
+            <TableHead>Stato</TableHead>
+            <TableHead>Inizio</TableHead>
+            <TableHead className="text-right">Azioni</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {items.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={4} className="py-8 text-center text-sm text-muted-foreground">
+                Nessun evento. Crea il primo evento per iniziare.
+              </TableCell>
+            </TableRow>
+          ) : items.map((e) => (
+            <TableRow key={e.id}>
+              <TableCell>
+                <Link href={`/admin/events/${e.id}`} className="font-medium text-brand-700 hover:underline">
+                  {e.title}
+                </Link>
+              </TableCell>
+              <TableCell><StatusBadge status={e.status} /></TableCell>
+              <TableCell className="text-muted-foreground">
+                {new Date(e.start_at).toLocaleString("it-IT", {
+                  day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
+                })}
+              </TableCell>
+              <TableCell>
+                <div className="flex flex-wrap justify-end gap-1">
+                  <Button size="sm" variant="ghost" onClick={() => onAction(e.id, "duplicate")}>
+                    <Copy className="h-3.5 w-3.5" /> Duplica
+                  </Button>
+                  {(NEXT_ACTIONS[e.status] ?? []).map((a) => (
+                    <Button
+                      key={a.target}
+                      size="sm"
+                      variant={a.danger ? "ghost" : "outline"}
+                      className={a.danger ? "text-destructive hover:bg-destructive/10" : undefined}
+                      onClick={() => {
+                        if (a.danger && !window.confirm(`Confermi: ${a.label}?`)) return;
+                        onAction(e.id, "transition", a.target);
+                      }}
+                    >
+                      {a.label}
+                    </Button>
+                  ))}
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </Card>
   );
 }

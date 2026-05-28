@@ -1,54 +1,88 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Plus, Trash2 } from "lucide-react";
 import { api } from "@/lib/admin-api";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "@/components/ui/toaster";
 
 type Category = { id: number; name: string; color: string; description?: string };
 
 export default function CategoriesPage() {
   const [cats, setCats] = useState<Category[]>([]);
-  const [form, setForm] = useState({ name: "", color: "#0a66c2" });
-  const [error, setError] = useState("");
+  const [form, setForm] = useState({ name: "", color: "#3a7fb3" });
 
   async function load() {
-    setCats(await api.get<Category[]>("/categories"));
+    try { setCats(await api.get<Category[]>("/categories")); }
+    catch (e) { toast.error((e as Error).message); }
   }
-  useEffect(() => { load().catch((e) => setError((e as Error).message)); }, []);
+  useEffect(() => { load(); }, []);
 
-  async function create() {
+  async function create(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.name.trim()) return;
     try {
       await api.post("/categories", form);
-      setForm({ name: "", color: "#0a66c2" });
+      setForm({ name: "", color: "#3a7fb3" });
+      toast.success("Categoria creata");
       await load();
-    } catch (e) { setError((e as Error).message); }
+    } catch (e) { toast.error((e as Error).message); }
   }
   async function remove(id: number) {
-    try { await api.del(`/categories/${id}`); await load(); }
-    catch (e) { setError((e as Error).message); }
+    if (!window.confirm("Eliminare la categoria?")) return;
+    try { await api.del(`/categories/${id}`); toast.success("Eliminata"); await load(); }
+    catch (e) { toast.error((e as Error).message); }
   }
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-xl font-semibold">Categorie</h1>
-      <div className="flex gap-2">
-        <input className="rounded border p-2" placeholder="Nome"
-               value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-        <input className="h-10 w-14 rounded border" type="color"
-               value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} />
-        <button className="rounded bg-blue-600 px-4 py-2 text-white" onClick={create}>Aggiungi</button>
+    <div className="space-y-5">
+      <div>
+        <h1>Categorie</h1>
+        <p className="text-sm text-muted-foreground">Etichette colorate per organizzare gli eventi</p>
       </div>
-      {error && <p className="text-sm text-red-700">{error}</p>}
-      <ul className="divide-y rounded border bg-white">
-        {cats.map((c) => (
-          <li key={c.id} className="flex items-center justify-between p-3">
-            <span className="flex items-center gap-2">
-              <span className="inline-block h-4 w-4 rounded" style={{ background: c.color }} />
-              {c.name}
-            </span>
-            <button className="text-sm text-red-700" onClick={() => remove(c.id)}>Elimina</button>
-          </li>
-        ))}
-      </ul>
+
+      <Card>
+        <CardContent className="p-5">
+          <form onSubmit={create} className="flex flex-wrap items-end gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="cat-name">Nome</Label>
+              <Input id="cat-name" placeholder="Es. Formazione"
+                     value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="cat-color">Colore</Label>
+              <Input id="cat-color" type="color" className="h-9 w-16 cursor-pointer p-1"
+                     value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} />
+            </div>
+            <Button type="submit"><Plus className="h-4 w-4" /> Aggiungi</Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="px-0">
+          {cats.length === 0 ? (
+            <p className="px-6 py-4 text-sm text-muted-foreground">Nessuna categoria.</p>
+          ) : (
+            <ul className="divide-y">
+              {cats.map((c) => (
+                <li key={c.id} className="flex items-center justify-between px-6 py-3">
+                  <span className="flex items-center gap-3">
+                    <span className="inline-block h-5 w-5 rounded shadow" style={{ background: c.color }} />
+                    <span className="font-medium">{c.name}</span>
+                  </span>
+                  <Button variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10" onClick={() => remove(c.id)}>
+                    <Trash2 className="h-4 w-4" /> Elimina
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

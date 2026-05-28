@@ -12,6 +12,6 @@ describe("EventTable", () => {
     render(<EventTable items={items} onAction={() => {}} />);
     expect(screen.getByText("Alpha")).toBeInTheDocument();
     expect(screen.getByText("Beta")).toBeInTheDocument();
-    expect(screen.getByText("published")).toBeInTheDocument();
+    expect(screen.getByText("Pubblicato")).toBeInTheDocument();
   });
 });

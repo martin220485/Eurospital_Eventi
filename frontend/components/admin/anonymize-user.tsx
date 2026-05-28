@@ -1,51 +1,57 @@
 "use client";
 
 import { useState } from "react";
+import { Trash2 } from "lucide-react";
 import { auditApi } from "@/lib/audit-api";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "@/components/ui/toaster";
 
 export function AnonymizeUser() {
   const [userId, setUserId] = useState("");
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
-  const [err, setErr] = useState<string | null>(null);
 
   async function submit() {
     const id = Number(userId);
     if (!id) return;
     if (!window.confirm(`Anonimizzare permanentemente utente #${id}? Operazione irreversibile.`)) return;
-    setBusy(true); setMsg(null); setErr(null);
+    setBusy(true);
     try {
       const res = await auditApi.anonymizeUser(id);
-      setMsg(`Utente #${res.user_id} anonimizzato.`);
+      toast.success(`Utente #${res.user_id} anonimizzato`);
       setUserId("");
-    } catch (e: unknown) {
-      setErr(e instanceof Error ? e.message : "errore");
+    } catch (e) {
+      toast.error((e as Error).message);
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div className="space-y-2 rounded border bg-white p-4">
-      <h2 className="text-lg font-medium">Anonimizza utente (GDPR)</h2>
-      <p className="text-sm text-gray-600">
-        Rimuove PII dall&apos;utente; iscrizioni e audit log restano per integrità referenziale.
-      </p>
-      <div className="flex gap-2">
-        <input
-          aria-label="user-id"
-          placeholder="ID utente"
-          value={userId}
-          onChange={(e) => setUserId(e.target.value)}
-          className="rounded border px-2 py-1 text-sm"
-        />
-        <button onClick={submit} disabled={busy || !userId}
-                className="rounded bg-red-600 px-3 py-1 text-sm text-white disabled:opacity-50">
-          {busy ? "…" : "Anonimizza"}
-        </button>
-      </div>
-      {msg && <div role="status" className="rounded bg-green-50 p-2 text-sm text-green-700">{msg}</div>}
-      {err && <div role="alert" className="rounded bg-red-50 p-2 text-sm text-red-700">{err}</div>}
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base text-destructive">
+          <Trash2 className="h-4 w-4" /> Anonimizza utente (GDPR Art. 17)
+        </CardTitle>
+        <CardDescription>
+          Rimuove PII dall&apos;utente; iscrizioni e audit log restano per integrità referenziale.
+          Operazione irreversibile.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-end gap-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="uid">ID utente</Label>
+            <Input id="uid" placeholder="123" value={userId}
+                   onChange={(e) => setUserId(e.target.value)} type="number" className="w-32" />
+          </div>
+          <Button variant="destructive" onClick={submit} disabled={busy || !userId}>
+            {busy ? "…" : "Anonimizza"}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

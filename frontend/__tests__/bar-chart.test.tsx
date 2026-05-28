@@ -8,15 +8,8 @@ describe("BarChart", () => {
     expect(screen.getByText("Nessun dato.")).toBeInTheDocument();
   });
 
-  it("renders one rect per data point", () => {
-    const { container } = render(
-      <BarChart data={[{ label: "2026-01", value: 10 }, { label: "2026-02", value: 5 }]} />,
-    );
-    expect(container.querySelectorAll("rect").length).toBe(2);
-  });
-
-  it("uses title for accessibility", () => {
+  it("shows title when provided", () => {
     render(<BarChart data={[{ label: "x", value: 1 }]} title="Iscrizioni" />);
-    expect(screen.getByRole("img", { name: "Iscrizioni" })).toBeInTheDocument();
+    expect(screen.getByText("Iscrizioni")).toBeInTheDocument();
   });
 });

@@ -1,5 +1,6 @@
 import nh3
 from fastapi import APIRouter, Depends, HTTPException, Response, status
+from pydantic import BaseModel
 from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
@@ -116,6 +117,70 @@ def list_logs(
         .limit(limit).offset(offset)
     ).all()
     return LogListResult(items=[LogOut.model_validate(r) for r in rows], total=total)
+
+
+class BroadcastIn(BaseModel):
+    template_code: str
+    target: str  # "all" | "event" | "role"
+    event_id: int | None = None
+    event_status: str | None = None  # confirmed | waitlisted | attended (per target=event)
+    role_name: str | None = None     # per target=role
+    custom_subject: str | None = None
+    custom_body_html: str | None = None
+
+
+@router.post(
+    "/notifications/broadcast",
+    status_code=status.HTTP_202_ACCEPTED,
+    dependencies=[Depends(require_permission(_PERM))],
+)
+def broadcast_notification(payload: BroadcastIn, db: Session = Depends(get_db)) -> dict:
+    from sqlalchemy import select as _sel
+    from app.models import Registration, User as UserModel, Role as RoleModel
+    from app.services import notification_service
+
+    tmpl = db.scalar(_sel(NotificationTemplate).where(NotificationTemplate.code == payload.template_code))
+    if tmpl is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="template non trovato")
+
+    if payload.target == "event":
+        if not payload.event_id:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="event_id mancante")
+        stmt = (_sel(UserModel.id).join(Registration, Registration.user_id == UserModel.id)
+                .where(Registration.event_id == payload.event_id))
+        if payload.event_status:
+            stmt = stmt.where(Registration.status == payload.event_status)
+        user_ids = list(db.scalars(stmt).all())
+    elif payload.target == "role":
+        if not payload.role_name:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="role_name mancante")
+        role = db.scalar(_sel(RoleModel).where(RoleModel.name == payload.role_name))
+        if role is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="role non trovato")
+        user_ids = [u.id for u in role.users]
+    elif payload.target == "all":
+        user_ids = list(db.scalars(_sel(UserModel.id).where(UserModel.is_active == True)).all())  # noqa: E712
+    else:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="target non valido")
+
+    queued = 0
+    from app.workers.tasks import send_notification
+    sample_context = {
+        "user": {"full_name": "{nome}"},
+        "event": {"title": "{evento}", "start_at": "", "location": ""},
+        "registration": {"id": 0},
+    }
+    for uid in set(user_ids):
+        try:
+            ctx = sample_context  # broadcast usa context generico; per render specifico per utente serve worker fanout
+            send_notification.delay(
+                template_code=payload.template_code,
+                user_id=uid, registration_id=None, context=ctx,
+            )
+            queued += 1
+        except Exception:
+            pass
+    return {"ok": True, "queued": queued, "target": payload.target}
 
 
 @router.post(
