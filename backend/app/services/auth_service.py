@@ -23,6 +23,30 @@ class AuthError(Exception):
 
 def authenticate(db: Session, identifier: str, password: str) -> User | None:
     user = get_by_identifier(db, identifier)
+
+    # SSO LDAP first (only if enabled, and only for non-local users when known).
+    try:
+        from app.services import ldap_service, settings_service
+        ldap_cfg = settings_service.get_ldap(db)
+    except Exception:
+        ldap_cfg = None
+        ldap_service = None  # type: ignore[assignment]
+
+    sso_on = bool(ldap_cfg and ldap_cfg.sso_enabled)
+    try_ldap = sso_on and (user is None or user.auth_source != "local")
+
+    if try_ldap and ldap_service is not None:
+        try:
+            if ldap_service.bind_user(db, identifier, password):
+                user = ldap_service.sync_user(db, identifier)
+                if user.is_active:
+                    return user
+        except ldap_service.LdapError:
+            pass
+        if user is None or user.auth_source != "local":
+            verify_password(password, _DUMMY_HASH)
+            return None
+
     if user is None or not user.hashed_password:
         verify_password(password, _DUMMY_HASH)
         return None
