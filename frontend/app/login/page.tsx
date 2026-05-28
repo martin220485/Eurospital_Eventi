@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Building2, ListChecks, Lock, User } from "lucide-react";
+import { Building2, Lock, User } from "lucide-react";
+import { BrandLogo } from "@/components/brand-logo";
 import { login, resolveLanding } from "@/lib/admin-api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,9 +44,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-brand-50 via-white to-brand-100 px-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-3 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-brand-600 text-white">
-            <ListChecks className="h-6 w-6" />
-          </div>
+          <BrandLogo className="mx-auto !h-12 !w-12 !rounded-lg" />
           <div>
             <CardTitle className="text-2xl text-brand-800">Eurospital Eventi</CardTitle>
             <CardDescription>Accedi al portale aziendale</CardDescription>

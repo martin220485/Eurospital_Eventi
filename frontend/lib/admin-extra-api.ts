@@ -46,6 +46,17 @@ export const platformApi = {
   getSettings: () => api.get<PlatformSettings>("/admin/platform/settings"),
   saveSettings: (body: Partial<PlatformSettings>) =>
     api.put<PlatformSettings>("/admin/platform/settings", body),
+  uploadLogo: async (file: File) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    const r = await fetch("/api/admin/platform/logo", { method: "POST", body: fd, credentials: "include" });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      throw new Error(d.detail ?? `HTTP ${r.status}`);
+    }
+    return r.json() as Promise<{ ok: boolean; logo_filename: string; favicon_filename: string }>;
+  },
+  deleteLogo: () => api.del<{ ok: boolean }>("/admin/platform/logo"),
   status: () => api.get<{
     status: string;
     version: string;

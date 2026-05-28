@@ -7,6 +7,7 @@ import {
   Settings, ShieldAlert, Tag, Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BrandLogo } from "@/components/brand-logo";
 
 const NAV = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
@@ -28,9 +29,7 @@ export function Sidebar() {
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r bg-white">
       <div className="flex h-14 items-center gap-2 border-b px-4">
-        <div className="flex h-9 w-9 items-center justify-center rounded-md bg-brand-600 text-white">
-          <ListChecks className="h-5 w-5" />
-        </div>
+        <BrandLogo />
         <div className="leading-tight">
           <div className="text-sm font-semibold text-brand-800">Eurospital</div>
           <div className="text-xs text-muted-foreground">Eventi</div>
@@ -60,7 +59,7 @@ export function Sidebar() {
         })}
       </nav>
       <div className="border-t p-4 text-[11px] text-muted-foreground">
-        v1.0.0-rc1 · MVP
+        v1.2.0
       </div>
     </aside>
   );

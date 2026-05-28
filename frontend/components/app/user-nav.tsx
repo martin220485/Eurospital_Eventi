@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Calendar, CalendarDays, Home, ListChecks, Ticket, User } from "lucide-react";
+import { Calendar, CalendarDays, Home, Ticket, User } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BrandLogo } from "@/components/brand-logo";
 
 const NAV = [
   { href: "/app", label: "Dashboard", icon: Home },
@@ -18,9 +19,7 @@ export function UserNav() {
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r bg-white">
       <div className="flex h-14 items-center gap-2 border-b px-4">
-        <div className="flex h-9 w-9 items-center justify-center rounded-md bg-brand-600 text-white">
-          <ListChecks className="h-5 w-5" />
-        </div>
+        <BrandLogo />
         <div className="leading-tight">
           <div className="text-sm font-semibold text-brand-800">Eurospital</div>
           <div className="text-xs text-muted-foreground">Area dipendente</div>
