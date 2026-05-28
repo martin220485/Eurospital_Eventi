@@ -62,3 +62,14 @@ def test_notifications_manage_permission_seeded(engine):
             "WHERE p.code = 'notifications.manage' AND r.name = 'super_admin'"
         )).first()
     assert row is not None
+
+
+def test_reports_read_permission_seeded(engine):
+    with engine.connect() as c:
+        row = c.execute(text(
+            "SELECT 1 FROM permissions p "
+            "JOIN role_permissions rp ON rp.permission_id = p.id "
+            "JOIN roles r ON r.id = rp.role_id "
+            "WHERE p.code = 'reports.read' AND r.name = 'super_admin'"
+        )).first()
+    assert row is not None

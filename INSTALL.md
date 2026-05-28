@@ -75,6 +75,14 @@ Sessione via cookie httpOnly (route handler Next `/api/session/*`); i file caric
 - Log invii: `/admin/notifications/logs` — filtri stato/template, paginazione, **Rinvia** per riga.
 - Permesso `notifications.manage` necessario (seed automatico su ruolo `super_admin`).
 
+## Report & dashboard (F7)
+- `/admin` mostra dashboard KPI: eventi totali / pubblicati / prossimi, iscrizioni per stato, tasso partecipazione, grafico iscrizioni per mese (ultimi 12), top eventi (90gg). Filtri periodo via querystring (`?date_from=YYYY-MM-DD&date_to=...`) o link rapidi 30g/90g/anno.
+- Tab **Report** nella scheda evento `/admin/events/[id]`: cards per stato (confermati/in attesa/annullati/presenti/no-show/partecipazione), pulsante **Esporta CSV iscritti**, summary campi custom (select/multiselect/radio).
+- Export CSV globale: `GET /api/admin/reports/registrations.csv?event_id?&date_from?&date_to?` (UTF-8 BOM, Excel-friendly).
+- Endpoint API: `/api/admin/reports/{kpis,events/{id},events/{id}/registrations.csv,registrations.csv}`.
+- Permesso `reports.read` richiesto (seed automatico su `super_admin`).
+- Out of scope F7: report per reparto (richiede F8 AD), export PDF/Excel (rinviati a F10/F7-stretch), report schedulati.
+
 ## Test
 - Backend: `cd backend && TEST_DATABASE_URL=mysql+pymysql://eventi:eventi@127.0.0.1:3307/eventi_test uv run pytest`
 - Frontend: `cd frontend && pnpm test && pnpm build`
