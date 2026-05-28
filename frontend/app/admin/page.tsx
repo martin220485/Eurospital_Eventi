@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { Calendar, CheckCircle2, Download, TrendingUp, Trophy, Users } from "lucide-react";
 import { KpiCard } from "@/components/admin/kpi-card";
 import { BarChart } from "@/components/admin/bar-chart";
+import { DateRangePicker } from "@/components/admin/date-range-picker";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -71,7 +72,8 @@ export default async function AdminDashboard({
         </div>
         <div className="flex items-center gap-1 rounded-lg border bg-card p-1 text-xs">
           {presets.map((p) => {
-            const active = (p.from ?? undefined) === (params.date_from ?? undefined);
+            const active =
+              !params.date_to && (p.from ?? undefined) === (params.date_from ?? undefined);
             return (
               <Link
                 key={p.label}
@@ -88,6 +90,7 @@ export default async function AdminDashboard({
               </Link>
             );
           })}
+          <DateRangePicker from={params.date_from} to={params.date_to} />
         </div>
       </div>
 
@@ -123,7 +126,14 @@ export default async function AdminDashboard({
 
       <BarChart
         title="Iscrizioni per mese (ultimi 12)"
-        data={kpis.registrations_by_month.map((m) => ({ label: m.month.slice(5), value: m.count }))}
+        data={kpis.registrations_by_month.map((m) => {
+          const r = monthRange(m.month);
+          return {
+            label: m.month.slice(5),
+            value: m.count,
+            href: `/admin?date_from=${r.from}&date_to=${r.to}`,
+          };
+        })}
       />
 
       <Card>
@@ -171,4 +181,10 @@ export default async function AdminDashboard({
 
 function last(d: number) {
   return new Date(Date.now() - d * 24 * 3600 * 1000).toISOString().slice(0, 10);
+}
+
+function monthRange(ym: string) {
+  const [y, m] = ym.split("-").map(Number);
+  const lastDay = new Date(y, m, 0).getDate();
+  return { from: `${ym}-01`, to: `${ym}-${String(lastDay).padStart(2, "0")}` };
 }

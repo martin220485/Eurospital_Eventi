@@ -1,11 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import {
   Bar, BarChart as RBarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-export type BarDatum = { label: string; value: number };
+export type BarDatum = { label: string; value: number; href?: string };
 
 // Design tokens (mirror tailwind.config.ts; recharts needs concrete values).
 const GRID = "hsl(214 32% 91%)"; // border
@@ -16,6 +17,7 @@ export function BarChart({
   data, title, height = 240,
 }: { data: BarDatum[]; title?: string; height?: number }) {
   const total = data.reduce((s, d) => s + d.value, 0);
+  const clickable = data.some((d) => d.href);
   return (
     <Card>
       {title && (
@@ -42,10 +44,23 @@ export function BarChart({
                     cursor={{ fill: "rgba(58,127,179,0.08)" }}
                     contentStyle={{ border: `1px solid ${GRID}`, borderRadius: 8, fontSize: 12 }}
                   />
-                  <Bar dataKey="value" fill={BRAND} radius={[6, 6, 0, 0]} />
+                  <Bar
+                    dataKey="value"
+                    fill={BRAND}
+                    radius={[6, 6, 0, 0]}
+                    cursor={clickable ? "pointer" : undefined}
+                    onClick={(d: { payload?: BarDatum }) => {
+                      if (d?.payload?.href) window.location.assign(d.payload.href);
+                    }}
+                  />
                 </RBarChart>
               </ResponsiveContainer>
             </div>
+            {clickable && (
+              <p className="mt-1 text-center text-xs text-muted-foreground">
+                Clicca una barra per filtrare il periodo
+              </p>
+            )}
             {/* Screen-reader alternative: charts aren't readable by assistive tech. */}
             <table className="sr-only">
               <caption>{title ? `Dati: ${title}` : "Dati grafico"}</caption>
@@ -58,7 +73,9 @@ export function BarChart({
               <tbody>
                 {data.map((d) => (
                   <tr key={d.label}>
-                    <th scope="row">{d.label}</th>
+                    <th scope="row">
+                      {d.href ? <Link href={d.href}>{d.label}</Link> : d.label}
+                    </th>
                     <td>{d.value}</td>
                   </tr>
                 ))}
