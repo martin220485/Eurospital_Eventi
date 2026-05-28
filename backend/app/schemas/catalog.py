@@ -44,6 +44,8 @@ class CatalogEventDetail(CatalogEventItem):
     description: str | None = None
     location_name: str | None = None
     address: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
     online_url: str | None = None
     capacity: int | None = None
     confirmed_count: int = 0

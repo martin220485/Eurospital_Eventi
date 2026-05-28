@@ -19,6 +19,8 @@ export type CatalogEventDetail = CatalogEvent & {
   description: string | null;
   location_name: string | null;
   address: string | null;
+  latitude: number | null;
+  longitude: number | null;
   online_url: string | null;
   capacity: number | null;
   confirmed_count: number;

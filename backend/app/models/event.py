@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from sqlalchemy import (
-    JSON, BigInteger, Boolean, DateTime, ForeignKey, Integer, String, Text, func,
+    JSON, BigInteger, Boolean, DateTime, Float, ForeignKey, Integer, String, Text, func,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -27,6 +27,8 @@ class Event(Base):
     mode: Mapped[str] = mapped_column(String(16), nullable=False, default="physical")
     location_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     address: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     online_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     start_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     end_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)

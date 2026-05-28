@@ -2,11 +2,18 @@
 
 import { use, useEffect, useState } from "react";
 import {
-  ArrowLeft, Award, CalendarDays, CalendarPlus, Check, Clock, Download, FileText,
-  ListChecks, MapPin, Monitor, Paperclip, RotateCw, Tag, Users,
+  ArrowLeft, Award, CalendarDays, CalendarPlus, Check, Clock, Download, ExternalLink,
+  FileText, ListChecks, MapPin, Monitor, Paperclip, RotateCw, Tag, Users,
 } from "lucide-react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import DOMPurify from "isomorphic-dompurify";
+
+// Leaflet needs the DOM; load the map client-only to avoid SSR "window is not defined".
+const EventMap = dynamic(() => import("@/components/app/event-map").then((m) => m.EventMap), {
+  ssr: false,
+  loading: () => <Skeleton className="h-72 w-full" />,
+});
 import { RegisterForm } from "@/components/app/register-form";
 import { RegistrationReceipt } from "@/components/app/registration-receipt";
 import { api } from "@/lib/admin-api";
@@ -260,6 +267,35 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
           </CardContent>
         </Card>
       </div>
+
+      {ev.mode !== "online" && ev.latitude != null && ev.longitude != null && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <MapPin className="h-4 w-4 text-brand-600" /> Come arrivare
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <EventMap
+              lat={ev.latitude}
+              lon={ev.longitude}
+              label={ev.location_name}
+              address={ev.address}
+            />
+            <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+              <span className="text-muted-foreground">{location}</span>
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${ev.latitude},${ev.longitude}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-brand-700 hover:underline"
+              >
+                Apri in Google Maps <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {result ? (
         <Card><CardContent className="p-5">

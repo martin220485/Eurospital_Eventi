@@ -4,6 +4,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models import Event, EventCustomField, EventCustomFieldOption, EventVisibility
+from app.services import geocode_service
 from app.services.html_sanitize import sanitize_html
 
 
@@ -12,6 +13,7 @@ class EventError(Exception):
 
 
 _HTML_FIELDS = ("short_description", "description")
+_GEO_FIELDS = ("mode", "location_name", "address")
 
 
 def _apply_html(data: dict) -> None:
@@ -20,9 +22,23 @@ def _apply_html(data: dict) -> None:
             data[f] = sanitize_html(data[f])
 
 
+def _apply_geocode(ev: Event) -> None:
+    """Aggiorna lat/lon dell'evento dall'indirizzo (Photon). Eventi online o senza
+    indirizzo: coordinate azzerate. Su fallimento geocoding le coordinate restano."""
+    if ev.mode == "online" or not ev.address:
+        ev.latitude = None
+        ev.longitude = None
+        return
+    query = ", ".join(p for p in (ev.location_name, ev.address) if p)
+    coords = geocode_service.geocode(query)
+    if coords:
+        ev.latitude, ev.longitude = coords
+
+
 def create(db: Session, *, created_by: int | None, **data) -> Event:
     _apply_html(data)
     ev = Event(status="draft", created_by=created_by, **data)
+    _apply_geocode(ev)
     db.add(ev)
     db.flush()
     return ev
@@ -40,6 +56,8 @@ def update(db: Session, event_id: int, data: dict) -> Event:
     _apply_html(data)
     for k, v in data.items():
         setattr(ev, k, v)
+    if any(f in data for f in _GEO_FIELDS):
+        _apply_geocode(ev)
     db.flush()
     return ev
 
