@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-05-28T00:00:00Z",
+  "title": "Design System: Eurospital Eventi",
+  "extensions": {
+    "colorMeta": {
+      "brand-blue": { "role": "primary", "displayName": "Brand Blue", "canonical": "#3a7fb3", "tonalRamp": ["#071829", "#0e2a40", "#163a57", "#1f4e74", "#2a6695", "#3a7fb3", "#5b9ac6", "#85b9d8", "#b3d4e8", "#d8eaf4", "#eef6fb"] },
+      "brand-blue-deep": { "role": "primary", "displayName": "Brand Blue Deep", "canonical": "#2a6695" },
+      "foreground": { "role": "neutral", "displayName": "Cool Ink", "canonical": "#0f1729" },
+      "muted-foreground": { "role": "neutral", "displayName": "Slate Grey", "canonical": "#6b7689" },
+      "border": { "role": "neutral", "displayName": "Hairline", "canonical": "#e2e8f0" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Page titles, h1." },
+      "headline": { "displayName": "Headline", "purpose": "Section headers, h2." },
+      "title": { "displayName": "Title", "purpose": "Card titles, dialog headings, h3." },
+      "body": { "displayName": "Body", "purpose": "Default reading text, capped 65-75ch." },
+      "label": { "displayName": "Label", "purpose": "Badges, table headers, form labels, helper text." }
+    },
+    "shadows": [
+      { "name": "soft", "value": "0 1px 2px 0 rgb(0 0 0 / 0.04), 0 1px 3px 0 rgb(0 0 0 / 0.04)", "purpose": "Inputs, buttons, small controls at rest." },
+      { "name": "card", "value": "0 1px 3px 0 rgb(15 35 60 / 0.06), 0 1px 2px -1px rgb(15 35 60 / 0.05)", "purpose": "Cards and panels. Tinted toward brand ink." }
+    ],
+    "motion": [
+      { "name": "transition-colors", "value": "color, background-color, border-color 150ms cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "Default for button/input state changes." }
+    ],
+    "breakpoints": [
+      { "name": "2xl-container", "value": "1400px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The committed action. Two-step darkening on hover then press.",
+      "html": "<button class=\"ds-btn-primary\">Iscriviti</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 8px 16px; border: none; border-radius: 10px; background: #2a6695; color: #ffffff; font-size: 14px; font-weight: 500; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.04), 0 1px 3px 0 rgb(0 0 0 / 0.04); transition: background-color 150ms cubic-bezier(0.4,0,0.2,1), transform 150ms cubic-bezier(0.4,0,0.2,1); } .ds-btn-primary:hover { background: #1f4e74; } .ds-btn-primary:active { background: #163a57; transform: translateY(1px); } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #3a7fb3; }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Secondary action on a hairline border with tint hover.",
+      "html": "<button class=\"ds-btn-outline\">Annulla</button>",
+      "css": ".ds-btn-outline { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 8px 16px; border: 1px solid #e2e8f0; border-radius: 10px; background: #ffffff; color: #0f1729; font-size: 14px; font-weight: 500; transition: background-color 150ms cubic-bezier(0.4,0,0.2,1); } .ds-btn-outline:hover { background: #eef6fb; } .ds-btn-outline:focus-visible { outline: none; box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #3a7fb3; }"
+    },
+    {
+      "name": "Default Badge",
+      "kind": "chip",
+      "refersTo": "badge-default",
+      "description": "Pill tag, tint background with deep-ink text.",
+      "html": "<span class=\"ds-badge\">Confermato</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 9999px; background: #d8eaf4; color: #163a57; font-size: 12px; font-weight: 500; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Hairline field with brand focus ring.",
+      "html": "<input class=\"ds-input\" placeholder=\"Cerca evento\" />",
+      "css": ".ds-input { display: block; width: 100%; height: 36px; padding: 4px 12px; border: 1px solid #e2e8f0; border-radius: 10px; background: #ffffff; color: #0f1729; font-size: 14px; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.04); transition: box-shadow 150ms cubic-bezier(0.4,0,0.2,1); } .ds-input::placeholder { color: #6b7689; } .ds-input:focus-visible { outline: none; box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #3a7fb3; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "White surface lifted by a tinted ambient shadow plus hairline border.",
+      "html": "<div class=\"ds-card\"><h3 class=\"ds-card-title\">Corso ECM</h3><p class=\"ds-card-desc\">12 giugno 2026, 09:00</p></div>",
+      "css": ".ds-card { border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff; color: #0f1729; padding: 24px; box-shadow: 0 1px 3px 0 rgb(15 35 60 / 0.06), 0 1px 2px -1px rgb(15 35 60 / 0.05); } .ds-card-title { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -0.01em; } .ds-card-desc { margin: 6px 0 0; font-size: 14px; color: #6b7689; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Clinical Calm",
+    "overview": "Eurospital Eventi is the booking layer for a medical organization's events. The interface earns trust by getting out of the way: calm blues, generous whitespace, one quiet accent. Built on shadcn/ui over Tailwind with a single blue identity scale. Density is medium, depth is real but soft, buttons feel physical. It rejects dark-mode dashboards, neon gradients, gradient text, and decorative glassmorphism.",
+    "keyCharacteristics": [
+      "One blue identity scale; color used sparingly and meaningfully",
+      "Layered depth: low ambient shadows separate surfaces",
+      "Tactile, confident buttons with visible hover and active states",
+      "Medium density, comfortable for long admin tables",
+      "System sans for fast, neutral, native-feeling reading"
+    ],
+    "rules": [
+      { "name": "The One Blue Rule", "body": "Exactly one identity hue. Every accent, link, focus ring, and primary action draws from the brand scale.", "section": "colors" },
+      { "name": "The Status-Only Color Rule", "body": "Red, green, and amber appear only to communicate state. Never decorative.", "section": "colors" },
+      { "name": "The Hierarchy-Not-Weight Rule", "body": "Rank through scale and weight contrast, not color. Colored text is reserved for links and status.", "section": "typography" },
+      { "name": "The Tinted-Shadow Rule", "body": "Card shadows carry the brand ink hue (rgb 15 35 60), never pure black.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep one blue identity scale for every accent and action.",
+      "Do use the two-step button darkening (deep, hover, active) for tactile feedback.",
+      "Do lift surfaces with the tinted Card shadow plus a hairline border.",
+      "Do reserve red / green / amber strictly for status.",
+      "Do cap long-form text at 65-75ch and lead hierarchy with scale and weight."
+    ],
+    "donts": [
+      "Don't introduce a second brand hue or any gradient accent.",
+      "Don't use gradient text (background-clip: text).",
+      "Don't ship dark mode by default; this is a calm, light medical product.",
+      "Don't use decorative glassmorphism or blur as ornament.",
+      "Don't use border-left greater than 1px as a colored stripe.",
+      "Don't let the calendar fall back to its default library colors."
+    ]
+  }
+}

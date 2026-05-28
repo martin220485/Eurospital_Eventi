@@ -19,3 +19,6 @@ node_modules/
 .DS_Store
 *.log
 .gstack/
+
+# impeccable critique run archives
+.impeccable/critique/
