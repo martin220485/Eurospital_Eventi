@@ -1,55 +1,67 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import FullCalendar from "@fullcalendar/react";
+import dayGridPlugin from "@fullcalendar/daygrid";
+import timeGridPlugin from "@fullcalendar/timegrid";
+import listPlugin from "@fullcalendar/list";
+import interactionPlugin from "@fullcalendar/interaction";
+import itLocale from "@fullcalendar/core/locales/it";
 import { catalogApi, type CatalogEvent } from "@/lib/catalog-api";
-import { dayRange, monthRange, weekRange } from "@/lib/calendar-utils";
-import { AgendaList } from "./agenda-list";
-import { DayList } from "./day-list";
-import { MonthGrid } from "./month-grid";
-import { WeekGrid } from "./week-grid";
+import { Card } from "@/components/ui/card";
 
-type View = "month" | "week" | "day" | "list";
-const VIEWS: [View, string][] = [["month", "Mese"], ["week", "Settimana"], ["day", "Giorno"], ["list", "Lista"]];
+const STATUS_COLORS: Record<string, string> = {
+  confirmed: "#10b981",
+  waitlisted: "#f59e0b",
+  cancelled: "#9ca3af",
+  attended: "#3b82f6",
+  default: "#3a7fb3",
+};
 
 export function CalendarView() {
-  const [view, setView] = useState<View>("month");
-  const [cursor, setCursor] = useState(new Date());
+  const calRef = useRef<FullCalendar | null>(null);
+  const router = useRouter();
   const [events, setEvents] = useState<CatalogEvent[]>([]);
 
   useEffect(() => {
-    const range = view === "week" ? weekRange(cursor) : view === "day" ? dayRange(cursor) : monthRange(cursor);
-    const qs = `?from=${range.from.toISOString()}&to=${range.to.toISOString()}&page_size=500`;
-    catalogApi.list(qs).then((r) => setEvents(r.items)).catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, cursor]);
+    catalogApi.list("?page_size=500").then((r) => setEvents(r.items)).catch(() => {});
+  }, []);
 
-  function shift(dir: -1 | 1) {
-    const d = new Date(cursor);
-    if (view === "month") d.setMonth(d.getMonth() + dir);
-    else if (view === "week") d.setDate(d.getDate() + 7 * dir);
-    else d.setDate(d.getDate() + dir);
-    setCursor(d);
-  }
+  const fcEvents = events.map((e) => ({
+    id: String(e.id),
+    title: e.title,
+    start: e.start_at,
+    end: e.end_at ?? undefined,
+    backgroundColor: STATUS_COLORS[e.my_status ?? "default"] ?? STATUS_COLORS.default,
+    borderColor: "transparent",
+  }));
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex gap-1">
-          {VIEWS.map(([v, label]) => (
-            <button key={v} className={`rounded px-3 py-1 text-sm ${view === v ? "bg-blue-600 text-white" : "border"}`}
-                    onClick={() => setView(v)}>{label}</button>
-          ))}
-        </div>
-        <div className="ml-auto flex gap-1">
-          <button className="rounded border px-2 py-1 text-sm" onClick={() => shift(-1)}>&#8249;</button>
-          <button className="rounded border px-2 py-1 text-sm" onClick={() => setCursor(new Date())}>Oggi</button>
-          <button className="rounded border px-2 py-1 text-sm" onClick={() => shift(1)}>&#8250;</button>
-        </div>
+    <Card className="p-4">
+      <div className="mb-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full" style={{ background: STATUS_COLORS.confirmed }} /> Confermata</span>
+        <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full" style={{ background: STATUS_COLORS.waitlisted }} /> In attesa</span>
+        <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full" style={{ background: STATUS_COLORS.attended }} /> Presente</span>
+        <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full" style={{ background: STATUS_COLORS.default }} /> Disponibile</span>
       </div>
-      {view === "month" && <MonthGrid events={events} date={cursor} />}
-      {view === "week" && <WeekGrid events={events} date={cursor} />}
-      {view === "day" && <DayList events={events} date={cursor} />}
-      {view === "list" && <AgendaList events={events} />}
-    </div>
+      <FullCalendar
+        ref={calRef as never}
+        plugins={[dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin]}
+        initialView="dayGridMonth"
+        locale={itLocale}
+        height="auto"
+        headerToolbar={{
+          left: "prev,next today",
+          center: "title",
+          right: "dayGridMonth,timeGridWeek,timeGridDay,listWeek",
+        }}
+        buttonText={{ today: "Oggi", month: "Mese", week: "Settimana", day: "Giorno", list: "Lista" }}
+        events={fcEvents}
+        eventClick={(info) => router.push(`/app/events/${info.event.id}`)}
+        nowIndicator
+        dayMaxEvents={3}
+      />
+    </Card>
   );
 }

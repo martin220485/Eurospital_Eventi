@@ -16,6 +16,6 @@ describe("EventCard", () => {
   });
   it("shows my status when registered", () => {
     render(<EventCard event={{ ...base, available_spots: 5, my_status: "confirmed" }} />);
-    expect(screen.getByText("confirmed")).toBeInTheDocument();
+    expect(screen.getByText(/iscritto/i)).toBeInTheDocument();
   });
 });

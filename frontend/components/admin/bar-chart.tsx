@@ -1,61 +1,44 @@
+"use client";
+
+import {
+  Bar, BarChart as RBarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis,
+} from "recharts";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
 export type BarDatum = { label: string; value: number };
 
 export function BarChart({
-  data, height = 160, title,
-}: { data: BarDatum[]; height?: number; title?: string }) {
-  const max = data.reduce((m, d) => Math.max(m, d.value), 0) || 1;
-  const barWidth = 100 / Math.max(data.length, 1);
-
+  data, title, height = 240,
+}: { data: BarDatum[]; title?: string; height?: number }) {
   return (
-    <div className="rounded-lg border bg-white p-4 shadow-sm">
-      {title && <h3 className="mb-3 text-sm font-medium text-gray-700">{title}</h3>}
-      {data.length === 0 ? (
-        <p className="text-sm text-gray-500">Nessun dato.</p>
-      ) : (
-        <svg
-          role="img"
-          aria-label={title ?? "grafico a barre"}
-          viewBox={`0 0 100 ${height}`}
-          preserveAspectRatio="none"
-          className="w-full"
-          style={{ height }}
-        >
-          {data.map((d, i) => {
-            const h = (d.value / max) * (height - 30);
-            const x = i * barWidth;
-            const y = height - 20 - h;
-            return (
-              <g key={d.label}>
-                <rect
-                  x={x + barWidth * 0.1}
-                  y={y}
-                  width={barWidth * 0.8}
-                  height={h}
-                  fill="#3b82f6"
-                />
-                <text
-                  x={x + barWidth / 2}
-                  y={height - 6}
-                  textAnchor="middle"
-                  fontSize="3"
-                  fill="#6b7280"
-                >
-                  {d.label.slice(-2)}
-                </text>
-                <text
-                  x={x + barWidth / 2}
-                  y={Math.max(y - 1, 5)}
-                  textAnchor="middle"
-                  fontSize="3"
-                  fill="#374151"
-                >
-                  {d.value}
-                </text>
-              </g>
-            );
-          })}
-        </svg>
+    <Card>
+      {title && (
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">{title}</CardTitle>
+        </CardHeader>
       )}
-    </div>
+      <CardContent>
+        {data.length === 0 ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">Nessun dato.</p>
+        ) : (
+          <div style={{ width: "100%", height }}>
+            <ResponsiveContainer>
+              <RBarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#6b7280" }} tickLine={false} axisLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: "#6b7280" }} tickLine={false} axisLine={false} allowDecimals={false} />
+                <Tooltip
+                  cursor={{ fill: "rgba(58,127,179,0.08)" }}
+                  contentStyle={{
+                    border: "1px solid #e5e7eb", borderRadius: 8, fontSize: 12,
+                  }}
+                />
+                <Bar dataKey="value" fill="#3a7fb3" radius={[6, 6, 0, 0]} />
+              </RBarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
