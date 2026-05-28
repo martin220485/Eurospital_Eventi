@@ -109,3 +109,82 @@ Sessione via cookie httpOnly (route handler Next `/api/session/*`); i file caric
 - F0 non usa MySQL/redis/worker: solo frontend + backend + nginx.
 - Redis + worker Celery integrati in F6 (notifiche).
 - nginx dello stack fa solo routing interno e security headers; non termina TLS.
+
+---
+
+## Deploy produzione (F10)
+
+### 1. Prerequisiti server
+
+- Host Linux con Docker + Docker Compose v2.
+- MySQL 8 esterno (DBA crea il database vuoto + grant `ALL` sul solo DB applicativo).
+- Accesso di rete (firewall/VPN) dai container al MySQL, allo SMTP aziendale, all'AD/LDAP.
+- DNS `eventi.eurospital.it` puntato all'NPM esistente su `.129`.
+- NPM configurato per fare upstream HTTP a `host:PROXY_HOST_PORT` (default `8080`).
+
+### 2. Configurazione `.env` produzione
+
+Genera valori robusti:
+
+```bash
+APP_SECRET_KEY=$(openssl rand -hex 32)
+JWT_SECRET=$(openssl rand -hex 32)
+SETUP_TOKEN=$(openssl rand -hex 16)
+```
+
+Compila `MYSQL_*` (host, user, password, db), `SMTP_*`, `REDIS_URL=redis://redis:6379/0`. Mai committare `.env`.
+
+### 3. Avvio stack
+
+```bash
+docker compose pull          # se usi tag versionati
+docker compose up -d --build
+docker compose exec backend uv run alembic upgrade head
+docker compose exec backend uv run python -m app.cli create-admin \
+  --email admin@eurospital.it --username admin
+```
+
+Verifica `GET https://eventi.eurospital.it/api/health/detailed` → `{"status":"ok","checks":{"db":"ok","redis":"ok"}}`.
+
+### 4. Backup & restore
+
+Dump giornaliero:
+
+```bash
+# /etc/cron.d/eurospital-eventi-backup
+30 2 * * * eventi /opt/eurospital-eventi/scripts/backup-mysql.sh /var/backups/eventi >> /var/log/eventi-backup.log 2>&1
+```
+
+Lo script ruota tenendo gli ultimi 14 dump. Esportarlo su storage remoto (rsync/S3) per disaster recovery off-site.
+
+Restore (in finestra di manutenzione, con worker fermo):
+
+```bash
+docker compose stop worker backend
+./scripts/restore-mysql.sh /var/backups/eventi/eventi-YYYYMMDD-HHMMSS.sql.gz
+docker compose start backend worker
+```
+
+### 5. Manutenzione ricorrente
+
+| Cosa | Quando |
+|---|---|
+| `cleanup-audit-logs` | settimanale (cron) |
+| Rotazione `JWT_SECRET` | annuale (richiede logout forzato di tutti) |
+| Update immagini base | mensile + dopo CVE rilevanti |
+| Verifica backup ripristinabili | trimestrale (test su DB stage) |
+
+### 6. Monitoraggio
+
+- `GET /api/health` per liveness/readiness in Docker compose (già configurato).
+- `GET /api/health/detailed` per check DB + Redis ad uso monitoring.
+- Log strutturati su stdout: integrare con journald / Loki / Grafana se disponibili.
+- Alert su: `/api/health/detailed` ≠ ok, queue Celery in errore prolungato, percentuale `notification_logs.status='failed'` > soglia.
+
+### 7. Smoke test post-deploy
+
+1. `GET /api/health/detailed` → `db: ok, redis: ok`.
+2. Login admin via `/login` → atterra su `/admin`.
+3. Crea evento di test draft → publish → registra utente fittizio → cancella → riceve email conferma + cancellazione (verifica casella).
+4. Verifica `/admin/audit` mostra le voci dei passi sopra.
+5. Esporta CSV iscritti su evento di test.
