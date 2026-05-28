@@ -35,15 +35,20 @@ def get_db() -> Generator[Session, None, None]:
 
 
 def swap_engine(new_url: str) -> None:
-    """Sostituisce engine + SessionLocal globali con un nuovo target."""
-    global engine, SessionLocal
+    """Sostituisce engine globale e rifa il bind del sessionmaker in-place.
+
+    Usa SessionLocal.configure(bind=...) per mantenere lo stesso oggetto
+    sessionmaker: i moduli che hanno già importato SessionLocal continuano
+    a vedere il nuovo bind senza dover essere reimportati.
+    """
+    global engine
     old = engine
     new_eng = _make_engine(new_url)
     # smoke ping
     with new_eng.connect() as c:
         c.exec_driver_sql("SELECT 1")
     engine = new_eng
-    SessionLocal = _make_session(new_eng)
+    SessionLocal.configure(bind=new_eng)
     try:
         old.dispose()
     except Exception:
