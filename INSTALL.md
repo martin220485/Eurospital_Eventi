@@ -181,6 +181,25 @@ docker compose start backend worker
 - Log strutturati su stdout: integrare con journald / Loki / Grafana se disponibili.
 - Alert su: `/api/health/detailed` ≠ ok, queue Celery in errore prolungato, percentuale `notification_logs.status='failed'` > soglia.
 
+### 6.bis Variante "lab" su stesso host del DB (compose.prod.yml)
+
+Quando il MySQL non è un server esterno ma un **altro container Docker** sullo
+stesso host (es. setup di lab), usa `docker-compose.prod.yml` invece del file
+standard. Differenze:
+- `backend`, `worker`, `beat` partecipano alla rete docker esistente del MySQL
+  (nominata `mysql_shared`/`eurospital_eventi_eventi`) per risolverlo via DNS
+  service-name.
+- `frontend`, `nginx`, `redis` restano sulla **sola** rete interna `eventi`
+  (multi-NIC produce 502 perché Next.js bind solo su una interfaccia).
+
+Avvio:
+```bash
+docker compose -p eventi-prod -f docker-compose.prod.yml up -d --build
+```
+
+In `.env`: `MYSQL_HOST=<nome-container-mysql>` (es. `eurospital_eventi-mysql-1`),
+`MYSQL_PORT=3306`.
+
 ### 7. Smoke test post-deploy
 
 1. `GET /api/health/detailed` → `db: ok, redis: ok`.

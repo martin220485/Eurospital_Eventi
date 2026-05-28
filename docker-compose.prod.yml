@@ -1,0 +1,165 @@
+# docker-compose.prod.yml — variante per deploy "lab" su un host che già ospita
+# un container MySQL esterno raggiungibile via una rete docker esistente.
+#
+# Differenze rispetto a docker-compose.yml:
+# - `backend`, `worker`, `beat` sono collegati anche alla rete esterna
+#   `eurospital_eventi_eventi` (rinominata `mysql_shared`) per raggiungere il
+#   container MySQL `eurospital_eventi-mysql-1` via DNS service-name.
+# - `frontend`, `nginx`, `redis` restano SOLO sulla rete interna `eventi`:
+#   tenerli su più reti causa multi-NIC + DNS lookup verso l'IP della rete
+#   sbagliata e produce 502 Bad Gateway (Next.js listen su una sola interfaccia).
+# - `mysql` (profilo dev) NON serve in prod, lasciato per riferimento.
+#
+# Avvio:
+#   docker compose -p eventi-prod -f docker-compose.prod.yml up -d --build
+#
+# Prerequisito: deve esistere la network esterna `eurospital_eventi_eventi`
+# (creata dal compose dev che lancia il container MySQL).
+services:
+  backend:
+    build: ./backend
+    expose:
+      - "8000"
+    networks:
+      - eventi
+      - mysql_shared
+    environment:
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-}
+      MYSQL_HOST: ${MYSQL_HOST:-}
+      MYSQL_PORT: ${MYSQL_PORT:-3306}
+      MYSQL_DB: ${MYSQL_DB:-}
+      MYSQL_USER: ${MYSQL_USER:-}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-}
+      DATABASE_URL: ${DATABASE_URL:-}
+      APP_SECRET_KEY: ${APP_SECRET_KEY:-}
+      JWT_SECRET: ${JWT_SECRET:-}
+      SETUP_TOKEN: ${SETUP_TOKEN:-}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-15}
+      REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS:-7}
+      RATE_LIMIT_AUTH_MAX: ${RATE_LIMIT_AUTH_MAX:-10}
+      RATE_LIMIT_AUTH_WINDOW: ${RATE_LIMIT_AUTH_WINDOW:-900}
+      AUDIT_LOG_RETENTION_DAYS: ${AUDIT_LOG_RETENTION_DAYS:-730}
+    volumes:
+      - uploads_data:/data/uploads
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  worker:
+    build: ./backend
+    command: ["celery", "-A", "app.workers.celery_app", "worker", "-l", "info", "--concurrency=2"]
+    networks:
+      - eventi
+      - mysql_shared
+    environment:
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-}
+      MYSQL_HOST: ${MYSQL_HOST:-}
+      MYSQL_PORT: ${MYSQL_PORT:-3306}
+      MYSQL_DB: ${MYSQL_DB:-}
+      MYSQL_USER: ${MYSQL_USER:-}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-}
+      DATABASE_URL: ${DATABASE_URL:-}
+      APP_SECRET_KEY: ${APP_SECRET_KEY:-}
+      JWT_SECRET: ${JWT_SECRET:-}
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  beat:
+    build: ./backend
+    command: ["celery", "-A", "app.workers.celery_app", "beat", "-l", "info"]
+    environment:
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-}
+      MYSQL_HOST: ${MYSQL_HOST:-}
+      MYSQL_PORT: ${MYSQL_PORT:-3306}
+      MYSQL_DB: ${MYSQL_DB:-}
+      MYSQL_USER: ${MYSQL_USER:-}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-}
+      DATABASE_URL: ${DATABASE_URL:-}
+      APP_SECRET_KEY: ${APP_SECRET_KEY:-}
+      JWT_SECRET: ${JWT_SECRET:-}
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - eventi
+      - mysql_shared
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - eventi
+
+  frontend:
+    build: ./frontend
+    environment:
+      BACKEND_INTERNAL_URL: http://backend:8000
+    expose:
+      - "3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - eventi
+
+  nginx:
+    image: nginx:alpine
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "${PROXY_HOST_PORT:-8080}:8080"
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - eventi
+
+  mysql:
+    image: mysql:8
+    profiles: ["dev"]
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: eventi_dev
+      MYSQL_USER: eventi
+      MYSQL_PASSWORD: eventi
+    command: ["--mysql-native-password=ON"]
+    ports:
+      - "127.0.0.1:3307:3306"
+    volumes:
+      - ./docker/mysql-init:/docker-entrypoint-initdb.d:ro
+      - mysql_dev_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - eventi
+
+networks:
+  eventi:
+    driver: bridge
+  mysql_shared:
+    external: true
+    name: eurospital_eventi_eventi
+
+volumes:
+  mysql_dev_data:
+  uploads_data:
+  redis_data:
