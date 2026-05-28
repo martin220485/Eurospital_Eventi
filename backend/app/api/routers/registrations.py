@@ -8,7 +8,7 @@ from app.schemas.registration import (
     AnswerOut, RegisterIn, RegistrationDetail, RegistrationListItem,
     RegistrationListResult, RegistrationOut,
 )
-from app.services import qr_service, registration_service
+from app.services import notification_service, qr_service, registration_service
 from app.services.rbac import user_has_permission
 
 router = APIRouter(tags=["registrations"])
@@ -41,6 +41,11 @@ def register(event_id: int, payload: RegisterIn, db: Session = Depends(get_db),
     except registration_service.RegistrationError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
     db.commit()
+    tmpl = "registration_confirmed" if reg.status == "confirmed" else (
+        "registration_waitlisted" if reg.status == "waitlisted" else None
+    )
+    if tmpl is not None:
+        notification_service.enqueue_registration_notification(db, tmpl, reg.id)
     return RegistrationOut.model_validate(reg)
 
 
@@ -96,7 +101,15 @@ def cancel_registration(registration_id: int, db: Session = Depends(get_db),
         reg = registration_service.cancel(db, registration_id, actor_id=user.id)
     except registration_service.RegistrationError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+    promoted_id = getattr(reg, "promoted_registration_id", None)
     db.commit()
+    notification_service.enqueue_registration_notification(
+        db, "registration_cancelled", reg.id
+    )
+    if promoted_id is not None:
+        notification_service.enqueue_registration_notification(
+            db, "registration_promoted", promoted_id
+        )
     return RegistrationOut.model_validate(reg)
 
 
@@ -109,6 +122,9 @@ def promote_registration(registration_id: int, db: Session = Depends(get_db),
     except registration_service.RegistrationError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
     db.commit()
+    notification_service.enqueue_registration_notification(
+        db, "registration_promoted", reg.id
+    )
     return RegistrationOut.model_validate(reg)
 
 

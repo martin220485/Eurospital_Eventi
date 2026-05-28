@@ -2,8 +2,10 @@ import smtplib
 from email.message import EmailMessage
 
 from jinja2.sandbox import SandboxedEnvironment
+from sqlalchemy.orm import Session
 
 from app.core.crypto import decrypt
+from app.models import Event, Registration, User
 
 _env = SandboxedEnvironment(autoescape=True)
 
@@ -13,6 +15,63 @@ def render(*, subject: str, body_html: str, context: dict) -> dict:
     s = _env.from_string(subject).render(**context)
     b = _env.from_string(body_html).render(**context)
     return {"subject": s, "body_html": b}
+
+
+def build_registration_context(db: Session, registration_id: int) -> dict:
+    """Build the Jinja context for registration-related templates."""
+    reg = db.get(Registration, registration_id)
+    if reg is None:
+        return {}
+    event = db.get(Event, reg.event_id)
+    user = db.get(User, reg.user_id)
+    location = ""
+    if event is not None:
+        location = event.location_name or event.address or event.online_url or ""
+    return {
+        "user": {
+            "full_name": (user.full_name if user is not None else "") or (user.username if user else ""),
+            "email": user.email if user else "",
+        },
+        "event": {
+            "title": event.title if event else "",
+            "start_at": event.start_at.strftime("%d/%m/%Y %H:%M") if event and event.start_at else "",
+            "location": location,
+        },
+        "registration": {
+            "id": reg.id,
+            "status": reg.status,
+        },
+    }
+
+
+def enqueue_registration_notification(
+    db: Session, template_code: str, registration_id: int
+) -> None:
+    """Enqueue send_notification.delay for a registration. Must be called AFTER db.commit().
+
+    Broker connection failures are logged and swallowed: the calling request must not
+    fail if Redis is unreachable.
+    """
+    import logging
+
+    from app.workers.tasks import send_notification
+
+    reg = db.get(Registration, registration_id)
+    if reg is None:
+        return
+    context = build_registration_context(db, registration_id)
+    try:
+        send_notification.delay(
+            template_code=template_code,
+            user_id=reg.user_id,
+            registration_id=reg.id,
+            context=context,
+        )
+    except Exception as exc:  # broker down, serialization error, etc.
+        logging.getLogger(__name__).warning(
+            "enqueue notification failed: template=%s reg=%s err=%s",
+            template_code, registration_id, exc,
+        )
 
 
 def decrypt_smtp_password(cfg) -> str | None:
