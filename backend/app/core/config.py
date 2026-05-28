@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     celery_broker_url: str | None = None
     celery_task_always_eager: bool = False
 
+    rate_limit_auth_max: int = 10
+    rate_limit_auth_window: int = 900
+    audit_log_retention_days: int = 730
+
     @property
     def broker_url(self) -> str:
         return self.celery_broker_url or self.redis_url
