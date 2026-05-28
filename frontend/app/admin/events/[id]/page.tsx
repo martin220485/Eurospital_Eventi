@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { AttachmentManager } from "@/components/admin/attachment-manager";
 import { EventForm } from "@/components/admin/event-form";
 import { EventReportPanel } from "@/components/admin/event-report-panel";
@@ -8,17 +9,28 @@ import { FieldBuilder } from "@/components/admin/field-builder";
 import { ManualRegisterDialog } from "@/components/admin/manual-register-dialog";
 import { RegistrationsPanel } from "@/components/admin/registrations-panel";
 import { VisibilityEditor } from "@/components/admin/visibility-editor";
+import { Card } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api } from "@/lib/admin-api";
+import { toast } from "@/components/ui/toaster";
 import type { EventInput } from "@/lib/event-schemas";
 
-const TABS = ["Dettagli", "Campi custom", "Allegati", "Visibilità", "Iscritti", "Report"] as const;
+const TABS = [
+  { value: "details", label: "Dettagli" },
+  { value: "fields", label: "Campi custom" },
+  { value: "attachments", label: "Allegati" },
+  { value: "visibility", label: "Visibilità" },
+  { value: "registrations", label: "Iscritti" },
+  { value: "report", label: "Report" },
+] as const;
 
 export default function EditEventPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const eventId = Number(id);
-  const [tab, setTab] = useState<(typeof TABS)[number]>("Dettagli");
+  const search = useSearchParams();
+  const initialTab = (search.get("tab") as typeof TABS[number]["value"]) || "details";
+  const [tab, setTab] = useState<string>(initialTab);
   const [initial, setInitial] = useState<Partial<EventInput> | null>(null);
-  const [msg, setMsg] = useState("");
   const [regRefresh, setRegRefresh] = useState(0);
 
   useEffect(() => {
@@ -28,35 +40,48 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
         start_at: String(e.start_at ?? "").slice(0, 16),
         end_at: String(e.end_at ?? "").slice(0, 16),
       } as Partial<EventInput>);
-    }).catch((err) => setMsg((err as Error).message));
+    }).catch((err) => toast.error((err as Error).message));
   }, [eventId]);
 
   async function save(data: EventInput) {
     await api.patch(`/events/${eventId}`, data);
-    setMsg("Salvato.");
   }
 
-  if (!initial) return <p>Caricamento&hellip;</p>;
+  if (!initial) return <p>Caricamento…</p>;
+
   return (
-    <div className="max-w-3xl space-y-4">
-      <h1 className="text-xl font-semibold">Modifica evento</h1>
-      <div className="flex gap-2 border-b">
-        {TABS.map((t) => (
-          <button key={t} className={`px-3 py-2 text-sm ${tab === t ? "border-b-2 border-blue-600 font-medium" : "text-gray-500"}`} onClick={() => setTab(t)}>{t}</button>
-        ))}
+    <div className="max-w-4xl space-y-5">
+      <div>
+        <h1>Evento #{eventId}</h1>
+        <p className="text-sm text-muted-foreground">Configurazione e gestione</p>
       </div>
-      {msg && <p className="text-sm text-green-700">{msg}</p>}
-      {tab === "Dettagli" && <EventForm initial={initial} onSubmit={save} />}
-      {tab === "Campi custom" && <FieldBuilder eventId={eventId} />}
-      {tab === "Allegati" && <AttachmentManager eventId={eventId} />}
-      {tab === "Visibilità" && <VisibilityEditor eventId={eventId} />}
-      {tab === "Iscritti" && (
-        <div className="space-y-3">
-          <ManualRegisterDialog eventId={eventId} onDone={() => setRegRefresh((n) => n + 1)} />
-          <RegistrationsPanel key={regRefresh} eventId={eventId} />
-        </div>
-      )}
-      {tab === "Report" && <EventReportPanel eventId={eventId} />}
+
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList>
+          {TABS.map((t) => <TabsTrigger key={t.value} value={t.value}>{t.label}</TabsTrigger>)}
+        </TabsList>
+        <TabsContent value="details">
+          <Card className="p-5"><EventForm initial={initial} onSubmit={save} /></Card>
+        </TabsContent>
+        <TabsContent value="fields">
+          <Card className="p-5"><FieldBuilder eventId={eventId} /></Card>
+        </TabsContent>
+        <TabsContent value="attachments">
+          <Card className="p-5"><AttachmentManager eventId={eventId} /></Card>
+        </TabsContent>
+        <TabsContent value="visibility">
+          <Card className="p-5"><VisibilityEditor eventId={eventId} /></Card>
+        </TabsContent>
+        <TabsContent value="registrations">
+          <Card className="p-5 space-y-3">
+            <ManualRegisterDialog eventId={eventId} onDone={() => setRegRefresh((n) => n + 1)} />
+            <RegistrationsPanel key={regRefresh} eventId={eventId} />
+          </Card>
+        </TabsContent>
+        <TabsContent value="report">
+          <EventReportPanel eventId={eventId} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
