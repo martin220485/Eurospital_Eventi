@@ -30,13 +30,31 @@ export function EventForm({
   useEffect(() => { api.get<Category[]>("/categories").then(setCats).catch(() => {}); }, []);
 
   function set<K extends keyof EventInput>(k: K, v: EventInput[K]) {
-    setForm((f) => ({ ...f, [k]: v }));
+    setForm((f) => {
+      const next = { ...f, [k]: v };
+      // Auto-imposta end_at = start_at + 1h se end_at è vuoto o <= start_at
+      if (k === "start_at" && typeof v === "string" && v) {
+        if (!next.end_at || next.end_at <= v) {
+          const d = new Date(v);
+          if (!isNaN(d.getTime())) {
+            d.setHours(d.getHours() + 1);
+            const iso = d.toISOString().slice(0, 16);
+            next.end_at = iso;
+          }
+        }
+      }
+      return next;
+    });
   }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     const parsed = eventSchema.safeParse(form);
     if (!parsed.success) { toast.error("Controlla i campi obbligatori (titolo, date)"); return; }
+    if (form.end_at && form.start_at && form.end_at <= form.start_at) {
+      toast.error("La data/ora di fine deve essere successiva a quella di inizio");
+      return;
+    }
     setBusy(true);
     try { await onSubmit(parsed.data); toast.success("Salvato"); }
     catch (e) { toast.error((e as Error).message); }
