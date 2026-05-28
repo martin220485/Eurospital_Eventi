@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
 from app.models import User
-from app.schemas.auth import LoginRequest, RefreshRequest, TokenPair
+from app.schemas.auth import ChangePasswordIn, LoginRequest, RefreshRequest, TokenPair
 from app.schemas.user import UserOut
 from app.services import auth_service, user_service
 
@@ -37,6 +37,18 @@ def refresh(payload: RefreshRequest, db: Session = Depends(get_db)) -> TokenPair
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 def logout(payload: RefreshRequest, db: Session = Depends(get_db)) -> Response:
     auth_service.revoke_refresh(db, payload.refresh_token)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
+def change_password(payload: ChangePasswordIn, db: Session = Depends(get_db),
+                    user: User = Depends(get_current_user)) -> Response:
+    try:
+        auth_service.change_password(db, user, old_password=payload.old_password,
+                                     new_password=payload.new_password)
+    except auth_service.AuthError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Vecchia password errata")
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
