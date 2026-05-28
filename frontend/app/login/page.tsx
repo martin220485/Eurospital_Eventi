@@ -74,6 +74,7 @@ export default function LoginPage() {
                   value={form.identifier}
                   onChange={(e) => setForm({ ...form, identifier: e.target.value })}
                   autoComplete="username"
+                  autoFocus
                   required
                 />
               </div>

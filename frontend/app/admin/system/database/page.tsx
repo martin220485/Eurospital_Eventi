@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import {
   AlertTriangle, ArrowRightLeft, Check, Database, PlugZap,
-  RefreshCw, Sparkles, Undo, Wrench,
+  RefreshCw, RotateCw, Sparkles, Undo, Wrench,
 } from "lucide-react";
 import { platformApi } from "@/lib/admin-extra-api";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toaster";
 
 type DbStatus = Awaited<ReturnType<typeof platformApi.dbStatus>>;
@@ -21,8 +22,10 @@ export default function DatabasePage() {
   const [target, setTarget] = useState<DbTarget | null>(null);
   const [form, setForm] = useState({ host: "", port: 3306, db: "", user: "", password: "" });
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
 
   async function loadAll() {
+    setError("");
     try {
       const [st, tg] = await Promise.all([platformApi.dbStatus(), platformApi.dbGetTarget()]);
       setS(st);
@@ -31,7 +34,7 @@ export default function DatabasePage() {
         host: tg.host ?? "", port: tg.port, db: tg.db,
         user: tg.user ?? "", password: "",
       });
-    } catch (e) { toast.error((e as Error).message); }
+    } catch (e) { setError((e as Error).message); }
   }
   useEffect(() => { loadAll(); }, []);
 
@@ -117,7 +120,24 @@ export default function DatabasePage() {
         </Button>
       </div>
 
-      {!s ? <p className="text-sm text-muted-foreground">Caricamento…</p> : (
+      {error ? (
+        <Card>
+          <CardContent className="flex flex-col items-start gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-destructive">Impossibile caricare lo stato del database. {error}</p>
+            <Button variant="outline" size="sm" onClick={loadAll}>
+              <RotateCw className="h-4 w-4" /> Riprova
+            </Button>
+          </CardContent>
+        </Card>
+      ) : !s ? (
+        <div className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-20" />)}
+          </div>
+          <Skeleton className="h-40" />
+          <Skeleton className="h-64" />
+        </div>
+      ) : (
         <>
           <div className="grid gap-4 sm:grid-cols-3">
             <Card>
@@ -229,8 +249,9 @@ export default function DatabasePage() {
                     <ArrowRightLeft className="h-4 w-4" /> Salva e usa
                   </Button>
                 </div>
-                <p className="rounded-md bg-amber-50 p-2 text-xs text-amber-800">
-                  ⚠ Lo switch è live solo per backend (HTTP). <strong>Worker e beat</strong> continuano col vecchio fino al restart container.
+                <p className="flex items-start gap-1.5 rounded-md bg-amber-50 p-2 text-xs text-amber-800">
+                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                  <span>Lo switch è live solo per backend (HTTP). <strong>Worker e beat</strong> continuano col vecchio fino al restart container.</span>
                 </p>
               </form>
             </CardContent>

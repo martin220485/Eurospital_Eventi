@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Stepper } from "@/components/stepper";
+import { Card, CardContent } from "@/components/ui/card";
 import { setupApi } from "@/lib/setup-api";
 import { Welcome } from "./steps/01-welcome";
 import { DbConfig } from "./steps/02-db-config";
@@ -45,9 +46,11 @@ export default function SetupPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Configurazione iniziale</h1>
+      <h1>Configurazione iniziale</h1>
       <Stepper steps={LABELS} current={step} />
-      <div className="rounded-lg border bg-white p-6 shadow-sm">{screens[step]}</div>
+      <Card>
+        <CardContent className="p-6">{screens[step]}</CardContent>
+      </Card>
     </div>
   );
 }

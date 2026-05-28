@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertTriangle, Check, Database, Mail, RefreshCw, Server, X } from "lucide-react";
+import { AlertTriangle, Check, Database, Mail, RefreshCw, RotateCw, Server, X } from "lucide-react";
 import { platformApi } from "@/lib/admin-extra-api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { toast } from "@/components/ui/toaster";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type Status = Awaited<ReturnType<typeof platformApi.status>>;
 
@@ -27,11 +27,13 @@ const ICONS: Record<string, typeof Database> = {
 export default function SystemStatusPage() {
   const [status, setStatus] = useState<Status | null>(null);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
 
   async function load() {
     setBusy(true);
+    setError("");
     try { setStatus(await platformApi.status()); }
-    catch (e) { toast.error((e as Error).message); }
+    catch (e) { setError((e as Error).message); }
     finally { setBusy(false); }
   }
   useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
@@ -54,6 +56,27 @@ export default function SystemStatusPage() {
           <RefreshCw className={`h-4 w-4 ${busy ? "animate-spin" : ""}`} /> Aggiorna
         </Button>
       </div>
+
+      {error && (
+        <Card>
+          <CardContent className="flex flex-col items-start gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-destructive">Impossibile caricare lo stato. {error}</p>
+            <Button variant="outline" size="sm" onClick={load}>
+              <RotateCw className="h-4 w-4" /> Riprova
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {!error && !status && (
+        <div className="space-y-4">
+          <Skeleton className="h-5 w-64" />
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-20" />)}
+          </div>
+          <Skeleton className="h-40" />
+        </div>
+      )}
 
       {status && (
         <>

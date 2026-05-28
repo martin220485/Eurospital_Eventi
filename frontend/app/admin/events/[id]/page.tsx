@@ -9,10 +9,12 @@ import { FieldBuilder } from "@/components/admin/field-builder";
 import { ManualRegisterDialog } from "@/components/admin/manual-register-dialog";
 import { RegistrationsPanel } from "@/components/admin/registrations-panel";
 import { VisibilityEditor } from "@/components/admin/visibility-editor";
+import { RotateCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api } from "@/lib/admin-api";
-import { toast } from "@/components/ui/toaster";
 import type { EventInput } from "@/lib/event-schemas";
 
 const TABS = [
@@ -31,23 +33,47 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
   const initialTab = (search.get("tab") as typeof TABS[number]["value"]) || "details";
   const [tab, setTab] = useState<string>(initialTab);
   const [initial, setInitial] = useState<Partial<EventInput> | null>(null);
+  const [error, setError] = useState("");
   const [regRefresh, setRegRefresh] = useState(0);
 
-  useEffect(() => {
+  function load() {
+    setError("");
     api.get<Record<string, unknown>>(`/events/${eventId}`).then((e) => {
       setInitial({
         ...e,
         start_at: String(e.start_at ?? "").slice(0, 16),
         end_at: String(e.end_at ?? "").slice(0, 16),
       } as Partial<EventInput>);
-    }).catch((err) => toast.error((err as Error).message));
-  }, [eventId]);
+    }).catch((err) => setError((err as Error).message));
+  }
+  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [eventId]);
 
   async function save(data: EventInput) {
     await api.patch(`/events/${eventId}`, data);
   }
 
-  if (!initial) return <p>Caricamento…</p>;
+  if (error) {
+    return (
+      <div className="max-w-4xl space-y-4">
+        <h1>Evento #{eventId}</h1>
+        <Card className="flex flex-col items-start gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-destructive">Impossibile caricare l&apos;evento. {error}</p>
+          <Button variant="outline" size="sm" onClick={load}>
+            <RotateCw className="h-4 w-4" /> Riprova
+          </Button>
+        </Card>
+      </div>
+    );
+  }
+  if (!initial) {
+    return (
+      <div className="max-w-4xl space-y-4">
+        <Skeleton className="h-8 w-40" />
+        <Skeleton className="h-9 w-full max-w-md" />
+        <Skeleton className="h-72" />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl space-y-5">
