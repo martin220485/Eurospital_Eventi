@@ -43,3 +43,14 @@ export async function login(identifier: string, password: string) {
 export async function logout() {
   await fetch("/api/session/logout", { method: "POST" });
 }
+
+export async function resolveLanding(): Promise<string> {
+  try {
+    const res = await fetch("/api/auth/me", { credentials: "include" });
+    if (!res.ok) return "/login";
+    const me = await res.json();
+    return Array.isArray(me.permissions) && me.permissions.length > 0 ? "/admin/events" : "/app";
+  } catch {
+    return "/login";
+  }
+}

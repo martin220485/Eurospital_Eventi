@@ -77,3 +77,10 @@ def revoke_refresh(db: Session, raw_refresh: str) -> None:
     if row is not None and row.revoked_at is None:
         row.revoked_at = datetime.now(UTC)
         db.flush()
+
+
+def change_password(db: Session, user: User, *, old_password: str, new_password: str) -> None:
+    if not user.hashed_password or not verify_password(old_password, user.hashed_password):
+        raise AuthError("invalid old password")
+    user.hashed_password = hash_password(new_password)
+    db.flush()

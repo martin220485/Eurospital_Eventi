@@ -60,6 +60,11 @@ Sessione via cookie httpOnly (route handler Next `/api/session/*`); i file caric
 - Pagina **Check-in** (`/admin/checkin`): l'operatore (ruolo `checkin_operator`) incolla/scansiona il token QR del partecipante per registrare la presenza (`attended`).
 - Capienza e `max_per_user` sono applicati lato server con lock dell'evento (niente overbooking); la lista d'attesa promuove automaticamente alla cancellazione di un confermato. Le email di conferma/promozione arrivano in F6.
 
+## Area dipendente (F5)
+- I dipendenti (ruolo `employee`, senza permessi admin) accedono da `/login` e atterrano su `/app` (lo staff con permessi va su `/admin`).
+- `/app`: dashboard, **Catalogo** (eventi pubblicati a visibilità "tutti"), **Calendario** (mese/settimana/giorno/lista), scheda evento con **iscrizione** (campi custom + consensi) e **ricevuta/QR**, **Le mie iscrizioni** (futuri/passati/annullati, annulla), **Profilo** (cambio password).
+- Gli eventi a visibilità ristretta restano nascosti finché l'integrazione AD (F8) non fornisce reparti/gruppi. Le email di conferma arrivano in F6.
+
 ## Test
 - Backend: `cd backend && TEST_DATABASE_URL=mysql+pymysql://eventi:eventi@127.0.0.1:3307/eventi_test uv run pytest`
 - Frontend: `cd frontend && pnpm test && pnpm build`

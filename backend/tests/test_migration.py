@@ -28,3 +28,10 @@ def test_registration_permissions_and_role_seeded(engine):
     for code in ("registrations.read", "registrations.write", "checkin.write"):
         assert code in perms
     assert "checkin_operator" in roles
+
+
+def test_employee_role_seeded(engine):
+    from sqlalchemy import text
+    with engine.connect() as c:
+        roles = c.execute(text("SELECT name FROM roles")).scalars().all()
+    assert "employee" in roles

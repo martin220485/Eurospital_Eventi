@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { login } from "@/lib/admin-api";
+import { login, resolveLanding } from "@/lib/admin-api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -16,7 +16,7 @@ export default function LoginPage() {
     setError("");
     try {
       await login(form.identifier, form.password);
-      router.push("/admin/events");
+      router.push(await resolveLanding());
     } catch (err) {
       setError((err as Error).message);
     } finally {
