@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SettingsError, SettingsSkeleton } from "@/components/admin/settings-fallback";
 import { toast } from "@/components/ui/toaster";
 
 type SmtpForm = SmtpSettings & { password: string };
@@ -15,14 +16,18 @@ type SmtpForm = SmtpSettings & { password: string };
 export default function SmtpSettingsPage() {
   const [s, setS] = useState<SmtpForm | null>(null);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
 
-  useEffect(() => {
+  function loadSettings() {
+    setError("");
     smtpApi.getSettings()
       .then((d) => setS({ ...d, password: "" }))
-      .catch((e) => toast.error((e as Error).message));
-  }, []);
+      .catch((e) => setError((e as Error).message));
+  }
+  useEffect(() => { loadSettings(); }, []);
 
-  if (!s) return <p>Caricamento…</p>;
+  if (error) return <SettingsError message={error} onRetry={loadSettings} />;
+  if (!s) return <SettingsSkeleton />;
 
   function set<K extends keyof SmtpForm>(k: K, v: SmtpForm[K]) {
     setS((curr) => (curr ? { ...curr, [k]: v } : curr));

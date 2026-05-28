@@ -2,18 +2,21 @@
 
 import { useEffect, useState } from "react";
 import { Send } from "lucide-react";
+import { api } from "@/lib/admin-api";
 import { broadcastApi, usersApi } from "@/lib/admin-extra-api";
 import { notificationsApi, type TemplateOut } from "@/lib/notifications-api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/components/ui/toaster";
 
+type EventOpt = { id: number; title: string };
+
 export default function BroadcastPage() {
   const [templates, setTemplates] = useState<TemplateOut[]>([]);
   const [roles, setRoles] = useState<string[]>([]);
+  const [events, setEvents] = useState<EventOpt[]>([]);
   const [form, setForm] = useState({
     template_code: "",
     target: "all" as "all" | "event" | "role",
@@ -26,22 +29,35 @@ export default function BroadcastPage() {
   useEffect(() => {
     notificationsApi.listTemplates().then(setTemplates).catch(() => {});
     usersApi.listRoles().then(setRoles).catch(() => {});
+    api.get<{ items: EventOpt[] }>("/events").then((r) => setEvents(r.items)).catch(() => {});
   }, []);
+
+  function targetLabel() {
+    if (form.target === "all") return "tutti gli utenti attivi";
+    if (form.target === "role") return `i membri del ruolo "${form.role_name}"`;
+    const ev = events.find((e) => String(e.id) === form.event_id);
+    const scope = form.event_status ? ` (${form.event_status})` : "";
+    return `gli iscritti a "${ev?.title ?? form.event_id}"${scope}`;
+  }
 
   async function send(e: React.FormEvent) {
     e.preventDefault();
     if (!form.template_code) { toast.error("Seleziona un template"); return; }
+    if (form.target === "event" && !form.event_id) { toast.error("Seleziona un evento"); return; }
+    if (form.target === "role" && !form.role_name) { toast.error("Seleziona un ruolo"); return; }
+    const tpl = templates.find((t) => t.code === form.template_code);
+    if (!window.confirm(`Inviare "${tpl?.name ?? form.template_code}" a ${targetLabel()}? L'azione invia email reali.`)) {
+      return;
+    }
     setBusy(true);
     try {
       const body: Parameters<typeof broadcastApi.send>[0] = {
         template_code: form.template_code, target: form.target,
       };
       if (form.target === "event") {
-        if (!form.event_id) throw new Error("event_id mancante");
         body.event_id = Number(form.event_id);
         if (form.event_status) body.event_status = form.event_status;
       } else if (form.target === "role") {
-        if (!form.role_name) throw new Error("role_name mancante");
         body.role_name = form.role_name;
       }
       const res = await broadcastApi.send(body);
@@ -88,9 +104,15 @@ export default function BroadcastPage() {
             {form.target === "event" && (
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
-                  <Label htmlFor="ev-id">ID Evento</Label>
-                  <Input id="ev-id" type="number" value={form.event_id}
-                         onChange={(e) => setForm({ ...form, event_id: e.target.value })} />
+                  <Label>Evento</Label>
+                  <Select value={form.event_id} onValueChange={(v) => setForm({ ...form, event_id: v })}>
+                    <SelectTrigger><SelectValue placeholder="Seleziona evento…" /></SelectTrigger>
+                    <SelectContent>
+                      {events.map((ev) => (
+                        <SelectItem key={ev.id} value={String(ev.id)}>{ev.title}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-1.5">
                   <Label>Filtra per stato iscrizione</Label>

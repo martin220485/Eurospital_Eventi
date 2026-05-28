@@ -2,23 +2,29 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Download, KeyRound, LayoutDashboard, Mail, User as UserIcon } from "lucide-react";
+import { Download, KeyRound, LayoutDashboard, Mail, RotateCw, User as UserIcon } from "lucide-react";
 import { api } from "@/lib/admin-api";
 import { changePasswordSchema } from "@/lib/catalog-schemas";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toaster";
 
 type Me = { username: string; email: string; full_name?: string; permissions?: string[] };
 
 export default function ProfilePage() {
   const [me, setMe] = useState<Me | null>(null);
+  const [meError, setMeError] = useState("");
   const [form, setForm] = useState({ old_password: "", new_password: "" });
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => { api.get<Me>("/auth/me").then(setMe).catch(() => {}); }, []);
+  function loadMe() {
+    setMeError("");
+    api.get<Me>("/auth/me").then(setMe).catch((e) => setMeError((e as Error).message));
+  }
+  useEffect(() => { loadMe(); }, []);
 
   async function changePassword(e: React.FormEvent) {
     e.preventDefault();
@@ -58,20 +64,33 @@ export default function ProfilePage() {
           <CardDescription>Dati sincronizzati dall&apos;anagrafica aziendale</CardDescription>
         </CardHeader>
         <CardContent>
-          <dl className="grid gap-3 text-sm sm:grid-cols-3">
-            <div>
-              <dt className="flex items-center gap-1.5 text-xs text-muted-foreground"><UserIcon className="h-3 w-3" /> Nome</dt>
-              <dd className="mt-0.5 font-medium">{me?.full_name ?? "—"}</dd>
+          {meError ? (
+            <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-destructive">Impossibile caricare il profilo. {meError}</p>
+              <Button variant="outline" size="sm" onClick={loadMe}>
+                <RotateCw className="h-4 w-4" /> Riprova
+              </Button>
             </div>
-            <div>
-              <dt className="text-xs text-muted-foreground">Username</dt>
-              <dd className="mt-0.5 font-medium">{me?.username ?? "—"}</dd>
+          ) : !me ? (
+            <div className="grid gap-3 sm:grid-cols-3">
+              {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-10" />)}
             </div>
-            <div>
-              <dt className="flex items-center gap-1.5 text-xs text-muted-foreground"><Mail className="h-3 w-3" /> Email</dt>
-              <dd className="mt-0.5 font-medium">{me?.email ?? "—"}</dd>
-            </div>
-          </dl>
+          ) : (
+            <dl className="grid gap-3 text-sm sm:grid-cols-3">
+              <div>
+                <dt className="flex items-center gap-1.5 text-xs text-muted-foreground"><UserIcon className="h-3 w-3" /> Nome</dt>
+                <dd className="mt-0.5 font-medium">{me.full_name ?? "—"}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">Username</dt>
+                <dd className="mt-0.5 font-medium">{me.username}</dd>
+              </div>
+              <div>
+                <dt className="flex items-center gap-1.5 text-xs text-muted-foreground"><Mail className="h-3 w-3" /> Email</dt>
+                <dd className="mt-0.5 font-medium">{me.email}</dd>
+              </div>
+            </dl>
+          )}
         </CardContent>
       </Card>
 

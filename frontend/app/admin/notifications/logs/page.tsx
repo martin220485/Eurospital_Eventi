@@ -18,10 +18,13 @@ async function fetchLogs(): Promise<{ items: LogOut[]; total: number }> {
 export default async function LogsPage() {
   const data = await fetchLogs();
   return (
-    <div className="space-y-4">
-      <div className="flex items-baseline justify-between">
-        <h1 className="text-2xl font-semibold">Log notifiche</h1>
-        <Link href="/admin/notifications" className="text-sm text-blue-600 underline">
+    <div className="space-y-5">
+      <div className="flex items-baseline justify-between gap-3">
+        <div>
+          <h1>Log notifiche</h1>
+          <p className="text-sm text-muted-foreground">Esiti invii email</p>
+        </div>
+        <Link href="/admin/notifications" className="text-sm text-brand-700 hover:underline">
           ← Torna ai template
         </Link>
       </div>
