@@ -3,6 +3,7 @@
 import { use, useEffect, useState } from "react";
 import { AttachmentManager } from "@/components/admin/attachment-manager";
 import { EventForm } from "@/components/admin/event-form";
+import { EventReportPanel } from "@/components/admin/event-report-panel";
 import { FieldBuilder } from "@/components/admin/field-builder";
 import { ManualRegisterDialog } from "@/components/admin/manual-register-dialog";
 import { RegistrationsPanel } from "@/components/admin/registrations-panel";
@@ -10,7 +11,7 @@ import { VisibilityEditor } from "@/components/admin/visibility-editor";
 import { api } from "@/lib/admin-api";
 import type { EventInput } from "@/lib/event-schemas";
 
-const TABS = ["Dettagli", "Campi custom", "Allegati", "Visibilità", "Iscritti"] as const;
+const TABS = ["Dettagli", "Campi custom", "Allegati", "Visibilità", "Iscritti", "Report"] as const;
 
 export default function EditEventPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -55,6 +56,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
           <RegistrationsPanel key={regRefresh} eventId={eventId} />
         </div>
       )}
+      {tab === "Report" && <EventReportPanel eventId={eventId} />}
     </div>
   );
 }
