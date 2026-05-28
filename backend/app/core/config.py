@@ -25,6 +25,14 @@ class Settings(BaseSettings):
     upload_dir: str = "/data/uploads"
     max_upload_bytes: int = 10 * 1024 * 1024
 
+    redis_url: str = "redis://redis:6379/0"
+    celery_broker_url: str | None = None
+    celery_task_always_eager: bool = False
+
+    @property
+    def broker_url(self) -> str:
+        return self.celery_broker_url or self.redis_url
+
     @property
     def sqlalchemy_url(self) -> str:
         if self.database_url:
