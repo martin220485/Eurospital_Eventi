@@ -7,6 +7,7 @@ export function Sidebar() {
       <ul className="space-y-1 text-sm">
         <li><Link className="block rounded px-3 py-2 hover:bg-blue-100" href="/admin/events">Eventi</Link></li>
         <li><Link className="block rounded px-3 py-2 hover:bg-blue-100" href="/admin/categories">Categorie</Link></li>
+        <li><Link className="block rounded px-3 py-2 hover:bg-blue-100" href="/admin/checkin">Check-in</Link></li>
       </ul>
     </nav>
   );

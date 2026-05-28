@@ -54,3 +54,16 @@ def generate_refresh_token() -> str:
 
 def hash_refresh_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
+
+
+def create_checkin_token(registration_id: int) -> str:
+    settings = get_settings()
+    payload = {"sub": str(registration_id), "type": "checkin", "iat": datetime.now(UTC)}
+    return jwt.encode(payload, settings.jwt_secret, algorithm=ALGORITHM)
+
+
+def decode_checkin_token(token: str) -> int:
+    payload = decode_token(token)
+    if payload.get("type") != "checkin":
+        raise TokenError("not a checkin token")
+    return int(payload["sub"])

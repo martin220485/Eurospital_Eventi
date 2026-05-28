@@ -1,5 +1,8 @@
 from app.models.associations import role_permissions, user_roles
 from app.models.attachment import Attachment
+from app.models.checkin import Checkin
+from app.models.registration import Registration
+from app.models.registration_answer import RegistrationCustomAnswer
 from app.models.event import Event
 from app.models.event_category import EventCategory
 from app.models.event_custom_field import EventCustomField
@@ -29,4 +32,7 @@ __all__ = [
     "EventCustomFieldOption",
     "Attachment",
     "EventVisibility",
+    "Registration",
+    "RegistrationCustomAnswer",
+    "Checkin",
 ]
