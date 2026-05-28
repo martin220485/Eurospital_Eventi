@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { headers } from "next/headers";
-import { ArrowRight, FileText, Mail } from "lucide-react";
+import { ArrowRight, FileText, Mail, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -26,11 +26,18 @@ export default async function NotificationsPage() {
           <h1>Notifiche</h1>
           <p className="text-sm text-muted-foreground">Template email + log invii</p>
         </div>
-        <Button variant="outline" asChild>
-          <Link href="/admin/notifications/logs">
-            <FileText className="h-4 w-4" /> Log invii <ArrowRight className="h-4 w-4" />
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/admin/notifications/broadcast">
+              <Send className="h-4 w-4" /> Broadcast
+            </Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/admin/notifications/logs">
+              <FileText className="h-4 w-4" /> Log invii <ArrowRight className="h-4 w-4" />
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <Card>

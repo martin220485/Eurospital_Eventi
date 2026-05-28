@@ -3,6 +3,13 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/admin-api";
 import { eventSchema, type EventInput } from "@/lib/event-schemas";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { RichTextEditor } from "@/components/ui/rich-text";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "@/components/ui/toaster";
 
 type Category = { id: number; name: string };
 
@@ -18,7 +25,6 @@ export function EventForm({
 }: { initial?: Partial<EventInput>; onSubmit: (data: EventInput) => Promise<void> }) {
   const [form, setForm] = useState<EventInput>({ ...EMPTY, ...initial });
   const [cats, setCats] = useState<Category[]>([]);
-  const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => { api.get<Category[]>("/categories").then(setCats).catch(() => {}); }, []);
@@ -27,46 +33,119 @@ export function EventForm({
     setForm((f) => ({ ...f, [k]: v }));
   }
 
-  async function submit() {
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
     const parsed = eventSchema.safeParse(form);
-    if (!parsed.success) { setError("Controlla i campi obbligatori (titolo, date)."); return; }
-    setBusy(true); setError("");
-    try { await onSubmit(parsed.data); }
-    catch (e) { setError((e as Error).message); }
+    if (!parsed.success) { toast.error("Controlla i campi obbligatori (titolo, date)"); return; }
+    setBusy(true);
+    try { await onSubmit(parsed.data); toast.success("Salvato"); }
+    catch (e) { toast.error((e as Error).message); }
     finally { setBusy(false); }
   }
 
-  const inp = "w-full rounded border p-2";
   return (
-    <div className="space-y-3">
-      <input className={inp} placeholder="Titolo" value={form.title} onChange={(e) => set("title", e.target.value)} />
-      <input className={inp} placeholder="Descrizione breve" value={form.short_description ?? ""} onChange={(e) => set("short_description", e.target.value)} />
-      <textarea className={inp} rows={5} placeholder="Descrizione (HTML semplice)" value={form.description ?? ""} onChange={(e) => set("description", e.target.value)} />
-      <div className="flex gap-2">
-        <select className={inp} value={form.category_id ?? ""} onChange={(e) => set("category_id", e.target.value ? Number(e.target.value) : null)}>
-          <option value="">Nessuna categoria</option>
-          {cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
-        <select className={inp} value={form.mode} onChange={(e) => set("mode", e.target.value as EventInput["mode"])}>
-          <option value="physical">In sede</option><option value="online">Online</option><option value="hybrid">Ibrido</option>
-        </select>
+    <form onSubmit={submit} className="space-y-5">
+      <div className="space-y-1.5">
+        <Label htmlFor="ev-title">Titolo *</Label>
+        <Input id="ev-title" value={form.title} onChange={(e) => set("title", e.target.value)} required />
       </div>
-      <input className={inp} placeholder="Luogo" value={form.location_name ?? ""} onChange={(e) => set("location_name", e.target.value)} />
-      <input className={inp} placeholder="Indirizzo" value={form.address ?? ""} onChange={(e) => set("address", e.target.value)} />
-      <input className={inp} placeholder="Link online" value={form.online_url ?? ""} onChange={(e) => set("online_url", e.target.value)} />
-      <div className="flex gap-2">
-        <label className="flex-1 text-sm">Inizio<input className={inp} type="datetime-local" value={form.start_at} onChange={(e) => set("start_at", e.target.value)} /></label>
-        <label className="flex-1 text-sm">Fine<input className={inp} type="datetime-local" value={form.end_at} onChange={(e) => set("end_at", e.target.value)} /></label>
+      <div className="space-y-1.5">
+        <Label htmlFor="ev-short">Descrizione breve</Label>
+        <Textarea id="ev-short" rows={2} value={form.short_description ?? ""}
+                  onChange={(e) => set("short_description", e.target.value)} />
       </div>
-      <div className="flex gap-2">
-        <label className="flex-1 text-sm">Capienza<input className={inp} type="number" value={form.capacity ?? ""} onChange={(e) => set("capacity", e.target.value ? Number(e.target.value) : null)} /></label>
-        <label className="flex-1 text-sm">Max per utente<input className={inp} type="number" value={form.max_per_user} onChange={(e) => set("max_per_user", Number(e.target.value))} /></label>
+      <div className="space-y-1.5">
+        <Label>Descrizione</Label>
+        <RichTextEditor value={form.description ?? ""} onChange={(html) => set("description", html)} />
       </div>
-      <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.waitlist_enabled} onChange={(e) => set("waitlist_enabled", e.target.checked)} /> Lista d&apos;attesa</label>
-      <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.cancellation_allowed} onChange={(e) => set("cancellation_allowed", e.target.checked)} /> Annullamento consentito</label>
-      <textarea className={inp} rows={2} placeholder="Note interne" value={form.internal_notes ?? ""} onChange={(e) => set("internal_notes", e.target.value)} />
-      {error && <p className="text-sm text-red-700">{error}</p>}
-      <button className="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-50" disabled={busy} onClick={submit}>Salva</button>
-    </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label>Categoria</Label>
+          <Select value={form.category_id?.toString() ?? "none"} onValueChange={(v) => set("category_id", v === "none" ? null : Number(v))}>
+            <SelectTrigger><SelectValue placeholder="Nessuna" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Nessuna categoria</SelectItem>
+              {cats.map((c) => <SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label>Modalità</Label>
+          <Select value={form.mode} onValueChange={(v) => set("mode", v as EventInput["mode"])}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="physical">In sede</SelectItem>
+              <SelectItem value="online">Online</SelectItem>
+              <SelectItem value="hybrid">Ibrido</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div className="space-y-1.5">
+          <Label htmlFor="ev-loc">Luogo</Label>
+          <Input id="ev-loc" value={form.location_name ?? ""} onChange={(e) => set("location_name", e.target.value)} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="ev-addr">Indirizzo</Label>
+          <Input id="ev-addr" value={form.address ?? ""} onChange={(e) => set("address", e.target.value)} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="ev-url">Link online</Label>
+          <Input id="ev-url" value={form.online_url ?? ""} onChange={(e) => set("online_url", e.target.value)} />
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label htmlFor="ev-start">Inizio *</Label>
+          <Input id="ev-start" type="datetime-local" value={form.start_at} onChange={(e) => set("start_at", e.target.value)} required />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="ev-end">Fine *</Label>
+          <Input id="ev-end" type="datetime-local" value={form.end_at} onChange={(e) => set("end_at", e.target.value)} required />
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label htmlFor="ev-cap">Capienza</Label>
+          <Input id="ev-cap" type="number" value={form.capacity ?? ""}
+                 onChange={(e) => set("capacity", e.target.value ? Number(e.target.value) : null)} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="ev-max">Max per utente</Label>
+          <Input id="ev-max" type="number" value={form.max_per_user}
+                 onChange={(e) => set("max_per_user", Number(e.target.value))} />
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-6 rounded-md bg-muted/30 p-4">
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={form.waitlist_enabled}
+                 onChange={(e) => set("waitlist_enabled", e.target.checked)} />
+          Lista d&apos;attesa
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={form.cancellation_allowed}
+                 onChange={(e) => set("cancellation_allowed", e.target.checked)} />
+          Annullamento consentito
+        </label>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="ev-notes">Note interne</Label>
+        <Textarea id="ev-notes" rows={2} value={form.internal_notes ?? ""}
+                  onChange={(e) => set("internal_notes", e.target.value)} />
+      </div>
+
+      <div className="flex justify-end">
+        <Button type="submit" disabled={busy}>
+          {busy ? "Salvataggio…" : "Salva evento"}
+        </Button>
+      </div>
+    </form>
   );
 }
