@@ -72,3 +72,38 @@ def test_required_answer_missing_raises(db):
     ])
     with pytest.raises(registration_service.RegistrationError):
         registration_service.register(db, event_id=ev.id, user_id=_user(db, 1).id, registered_by=None, answers=[])
+
+
+def test_cancel_promotes_waitlist(db):
+    ev = _event(db, capacity=1, waitlist_enabled=True)
+    u1, u2 = _user(db, 1), _user(db, 2)
+    r1 = registration_service.register(db, event_id=ev.id, user_id=u1.id, registered_by=None, answers=[])
+    r2 = registration_service.register(db, event_id=ev.id, user_id=u2.id, registered_by=None, answers=[])
+    assert r2.status == "waitlisted"
+    registration_service.cancel(db, r1.id, actor_id=None)
+    db.refresh(r2)
+    assert r2.status == "confirmed"
+    assert r2.waitlist_position is None
+
+
+def test_cancel_blocked_when_not_allowed(db):
+    ev = _event(db, capacity=5, cancellation_allowed=False)
+    r = registration_service.register(db, event_id=ev.id, user_id=_user(db, 1).id, registered_by=None, answers=[])
+    with pytest.raises(registration_service.RegistrationError):
+        registration_service.cancel(db, r.id, actor_id=None)
+
+
+def test_manual_promote_requires_space(db):
+    ev = _event(db, capacity=1, waitlist_enabled=True)
+    registration_service.register(db, event_id=ev.id, user_id=_user(db, 1).id, registered_by=None, answers=[])
+    r2 = registration_service.register(db, event_id=ev.id, user_id=_user(db, 2).id, registered_by=None, answers=[])
+    with pytest.raises(registration_service.RegistrationError):
+        registration_service.promote(db, r2.id)  # no space
+
+
+def test_mark_no_show(db):
+    ev = _event(db, capacity=5)
+    r = registration_service.register(db, event_id=ev.id, user_id=_user(db, 1).id, registered_by=None, answers=[])
+    registration_service.mark_no_show(db, r.id)
+    db.refresh(r)
+    assert r.status == "no_show"
