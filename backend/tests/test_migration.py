@@ -35,3 +35,30 @@ def test_employee_role_seeded(engine):
     with engine.connect() as c:
         roles = c.execute(text("SELECT name FROM roles")).scalars().all()
     assert "employee" in roles
+
+
+def test_notification_tables_created(engine):
+    tables = set(inspect(engine).get_table_names())
+    assert {"notification_templates", "notification_logs"}.issubset(tables)
+
+
+def test_notification_templates_seeded(engine):
+    with engine.connect() as c:
+        rows = c.execute(text("SELECT code FROM notification_templates ORDER BY code")).scalars().all()
+    assert list(rows) == [
+        "registration_cancelled",
+        "registration_confirmed",
+        "registration_promoted",
+        "registration_waitlisted",
+    ]
+
+
+def test_notifications_manage_permission_seeded(engine):
+    with engine.connect() as c:
+        row = c.execute(text(
+            "SELECT 1 FROM permissions p "
+            "JOIN role_permissions rp ON rp.permission_id = p.id "
+            "JOIN roles r ON r.id = rp.role_id "
+            "WHERE p.code = 'notifications.manage' AND r.name = 'super_admin'"
+        )).first()
+    assert row is not None
