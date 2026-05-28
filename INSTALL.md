@@ -83,6 +83,15 @@ Sessione via cookie httpOnly (route handler Next `/api/session/*`); i file caric
 - Permesso `reports.read` richiesto (seed automatico su `super_admin`).
 - Out of scope F7: report per reparto (richiede F8 AD), export PDF/Excel (rinviati a F10/F7-stretch), report schedulati.
 
+## AD/LDAP (F8)
+- Pagina `/admin/settings/ldap`: configurazione (server URI, base DN, bind DN+password cifrata, user_filter, attr_mapping JSON, gruppi utenti/admin), pulsante **Test connessione**, toggle **SSO attivo**.
+- Quando `sso_enabled=true`, il login `/login` prova prima il bind LDAP; in caso di successo l'utente è creato/aggiornato automaticamente come `auth_source='ldap'` con `ldap_groups`, `department`, `ldap_dn`. Utenti `auth_source='local'` (admin di emergenza) restano attivi col fallback password locale.
+- Mapping attributi di default (Active Directory): `{username: sAMAccountName, email: mail, full_name: displayName, department: department, groups: memberOf}` — override nel JSON.
+- Mapping ruoli: membro di `admins_group` → ruolo locale `super_admin`; membro di `users_group` → ruolo locale `employee` (default).
+- Sync manuale dal pannello: **Anteprima** mostra attrs/gruppi/ruoli senza scrivere; **Sync utente** crea/aggiorna; **Sync tutti gli utenti del gruppo** itera i membri del `users_group`.
+- Visibility eventi ristretti: utenti AD con `ldap_groups`/`department` matchante un record di `event_visibility` (mode=restricted) vedono l'evento nel catalogo; utenti locali continuano a non vedere gli eventi ristretti (compat F5).
+- Permesso `users.ldap_sync` richiesto per tutti gli endpoint admin LDAP. Out of scope F8: OIDC, SAML, sync schedulato, custom group→role mapping oltre ai due slot.
+
 ## Test
 - Backend: `cd backend && TEST_DATABASE_URL=mysql+pymysql://eventi:eventi@127.0.0.1:3307/eventi_test uv run pytest`
 - Frontend: `cd frontend && pnpm test && pnpm build`

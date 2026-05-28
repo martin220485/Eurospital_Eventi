@@ -64,6 +64,22 @@ def test_notifications_manage_permission_seeded(engine):
     assert row is not None
 
 
+def test_users_has_ldap_columns(engine):
+    cols = {c["name"] for c in inspect(engine).get_columns("users")}
+    assert {"auth_source", "ldap_dn", "department", "ldap_groups"}.issubset(cols)
+
+
+def test_users_ldap_sync_permission_seeded(engine):
+    with engine.connect() as c:
+        row = c.execute(text(
+            "SELECT 1 FROM permissions p "
+            "JOIN role_permissions rp ON rp.permission_id = p.id "
+            "JOIN roles r ON r.id = rp.role_id "
+            "WHERE p.code = 'users.ldap_sync' AND r.name = 'super_admin'"
+        )).first()
+    assert row is not None
+
+
 def test_reports_read_permission_seeded(engine):
     with engine.connect() as c:
         row = c.execute(text(

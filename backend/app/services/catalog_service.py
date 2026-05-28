@@ -17,6 +17,28 @@ def _restricted_event_ids(db: Session):
     return select(EventVisibility.event_id).where(EventVisibility.mode == "restricted")
 
 
+def _hidden_event_ids_for(db: Session, user):
+    """Subquery: event IDs the user cannot see.
+
+    Local users → all restricted hidden (legacy F5).
+    LDAP users  → restricted visible if user.ldap_groups/department matches
+                  any event_visibility row for that event.
+    """
+    if user is not None and getattr(user, "auth_source", "local") == "ldap":
+        tokens = list(user.ldap_groups or [])
+        if user.department:
+            tokens.append(user.department)
+        if tokens:
+            visible = select(EventVisibility.event_id).where(
+                EventVisibility.mode == "restricted",
+                EventVisibility.dept_or_group.in_(tokens),
+            )
+            return select(EventVisibility.event_id).where(
+                EventVisibility.mode == "restricted"
+            ).except_(visible)
+    return _restricted_event_ids(db)
+
+
 def available_spots(db: Session, event: Event) -> int | None:
     if event.capacity is None:
         return None
@@ -48,13 +70,14 @@ def registration_open(db: Session, event: Event) -> bool:
 
 
 def list_visible_events(
-    db: Session, *, category_id, q, date_from, date_to, page, page_size,
+    db: Session, *, category_id, q, date_from, date_to, page, page_size, user=None,
 ) -> tuple[list[Event], int]:
+    hidden = _hidden_event_ids_for(db, user)
     base = select(Event).where(
-        Event.status == "published", Event.id.notin_(_restricted_event_ids(db))
+        Event.status == "published", Event.id.notin_(hidden)
     )
     count = select(func.count()).select_from(Event).where(
-        Event.status == "published", Event.id.notin_(_restricted_event_ids(db))
+        Event.status == "published", Event.id.notin_(hidden)
     )
     conds = []
     if category_id:
@@ -73,11 +96,11 @@ def list_visible_events(
     return list(db.scalars(base)), total
 
 
-def get_visible_event(db: Session, event_id: int) -> Event:
+def get_visible_event(db: Session, event_id: int, user=None) -> Event:
     ev = db.scalar(
         select(Event).where(
             Event.id == event_id, Event.status == "published",
-            Event.id.notin_(_restricted_event_ids(db)),
+            Event.id.notin_(_hidden_event_ids_for(db, user)),
         )
     )
     if ev is None:

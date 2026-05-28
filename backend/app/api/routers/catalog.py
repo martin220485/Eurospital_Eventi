@@ -34,7 +34,7 @@ def list_events(db: Session = Depends(get_db), user: User = Depends(get_current_
                 page: int = 1, page_size: int = 100) -> dict:
     events, total = catalog_service.list_visible_events(
         db, category_id=category_id, q=q, date_from=date_from, date_to=date_to,
-        page=page, page_size=page_size,
+        page=page, page_size=page_size, user=user,
     )
     return {"items": [_item(db, e, user.id) for e in events], "total": total,
             "page": page, "page_size": page_size}
@@ -44,7 +44,7 @@ def list_events(db: Session = Depends(get_db), user: User = Depends(get_current_
 def get_event(event_id: int, db: Session = Depends(get_db),
               user: User = Depends(get_current_user)) -> CatalogEventDetail:
     try:
-        ev = catalog_service.get_visible_event(db, event_id)
+        ev = catalog_service.get_visible_event(db, event_id, user=user)
     except catalog_service.CatalogError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Evento non disponibile")
     base = _item(db, ev, user.id)
