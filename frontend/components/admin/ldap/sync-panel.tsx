@@ -67,7 +67,7 @@ export function SyncPanel() {
 
       <div>
         <button onClick={onSyncAll} disabled={busy} className="rounded border px-4 py-2 text-sm">
-          Sync tutti gli utenti del gruppo
+          Sync tutti gli utenti AD
         </button>
       </div>
 
