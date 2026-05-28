@@ -107,3 +107,13 @@ def test_mark_no_show(db):
     registration_service.mark_no_show(db, r.id)
     db.refresh(r)
     assert r.status == "no_show"
+
+
+def test_no_show_promotes_waitlist(db):
+    ev = _event(db, capacity=1, waitlist_enabled=True)
+    r1 = registration_service.register(db, event_id=ev.id, user_id=_user(db, 1).id, registered_by=None, answers=[])
+    r2 = registration_service.register(db, event_id=ev.id, user_id=_user(db, 2).id, registered_by=None, answers=[])
+    assert r2.status == "waitlisted"
+    registration_service.mark_no_show(db, r1.id)
+    db.refresh(r2)
+    assert r2.status == "confirmed"

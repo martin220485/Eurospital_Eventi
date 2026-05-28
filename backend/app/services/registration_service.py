@@ -163,6 +163,8 @@ def mark_no_show(db: Session, registration_id: int) -> Registration:
         raise RegistrationError("only confirmed registrations can be marked no_show")
     reg.status = "no_show"
     db.flush()
+    # no_show frees an occupied seat → offer it to the waitlist (consistent with cancel)
+    _promote_next(db, reg.event_id)
     return reg
 
 
