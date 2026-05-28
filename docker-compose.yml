@@ -3,6 +3,9 @@ services:
     build: ./backend
     expose:
       - "8000"
+    environment:
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-}
     volumes:
       - uploads_data:/data/uploads
     healthcheck:
@@ -10,6 +13,41 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - eventi
+
+  worker:
+    build: ./backend
+    command: ["celery", "-A", "app.workers.celery_app", "worker", "-l", "info", "--concurrency=2"]
+    environment:
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-}
+      MYSQL_HOST: ${MYSQL_HOST:-}
+      MYSQL_PORT: ${MYSQL_PORT:-3306}
+      MYSQL_DB: ${MYSQL_DB:-}
+      MYSQL_USER: ${MYSQL_USER:-}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-}
+      DATABASE_URL: ${DATABASE_URL:-}
+      APP_SECRET_KEY: ${APP_SECRET_KEY:-}
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - eventi
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
     networks:
       - eventi
 
@@ -66,3 +104,4 @@ networks:
 volumes:
   mysql_dev_data:
   uploads_data:
+  redis_data:
