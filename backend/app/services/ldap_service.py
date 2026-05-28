@@ -187,13 +187,24 @@ def sync_user(db: Session, username: str) -> User:
     return user
 
 
-def sync_users_in_group(db: Session, group_cn: str) -> dict:
-    """Best-effort sync of all members of an AD group."""
+def sync_users_in_group(db: Session, group_cn: str | None) -> dict:
+    """Best-effort sync degli utenti AD.
+
+    Se `group_cn` è valorizzato sincronizza i membri di quel gruppo;
+    altrimenti usa il `user_filter` configurato (o default `(objectClass=user)`)
+    sul `base_dn`.
+    """
     cfg = _get_settings_obj(db)
-    if not cfg.server_uri or not cfg.base_dn or not group_cn:
-        raise LdapError("LDAP o group_cn non configurati")
+    if not cfg.server_uri or not cfg.base_dn:
+        raise LdapError("LDAP non configurato (server_uri/base_dn)")
     mapping = _mapping(cfg)
-    flt = f"(memberOf=CN={group_cn},{cfg.base_dn})"
+    if group_cn:
+        flt = f"(memberOf=CN={group_cn},{cfg.base_dn})"
+    else:
+        # filtro base: tutti gli utenti del base_dn
+        base = cfg.user_filter or "(&(objectClass=user)(!(objectClass=computer)))"
+        # rimuovi placeholder {username} se presente
+        flt = base.replace("{username}", "*") if "{username}" in base else base
     try:
         conn = _bind_admin(db, cfg)
     except LDAPException as e:

@@ -116,11 +116,11 @@ def sync_user(username: str, db: Session = Depends(get_db)) -> LdapSyncResult:
     dependencies=[Depends(require_permission(_PERM))],
 )
 def sync_all(db: Session = Depends(get_db)) -> LdapSyncResult:
+    """Sync di tutti gli utenti. Se `users_group` è configurato lo usa come
+    filtro `memberOf`; altrimenti scan dell'intero base_dn col `user_filter`."""
     cfg = settings_service.get_ldap(db)
-    if not cfg.users_group:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="users_group non configurato")
     try:
-        res = ldap_service.sync_users_in_group(db, cfg.users_group)
+        res = ldap_service.sync_users_in_group(db, cfg.users_group or None)
     except ldap_service.LdapError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
     db.commit()
