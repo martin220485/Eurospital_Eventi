@@ -1,42 +1,65 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
 from app.models import User
 from app.schemas.auth import ChangePasswordIn, LoginRequest, RefreshRequest, TokenPair
 from app.schemas.user import UserOut
-from app.services import auth_service, user_service
+from app.services import audit_service, auth_service, user_service
+
+
+def _ip_ua(request: Request) -> tuple[str, str]:
+    ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (
+        request.client.host if request.client else ""
+    )
+    ua = request.headers.get("user-agent", "")
+    return ip, ua
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
 @router.post("/login", response_model=TokenPair)
-def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenPair:
+def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)) -> TokenPair:
+    ip, ua = _ip_ua(request)
     user = auth_service.authenticate(db, payload.identifier, payload.password)
     if user is None:
+        audit_service.log(
+            db, action="auth.login.fail", ip=ip, user_agent=ua,
+            payload={"identifier": payload.identifier},
+        )
+        db.commit()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenziali non valide"
         )
     access, refresh = auth_service.issue_token_pair(db, user)
+    audit_service.log(
+        db, action="auth.login.success", actor_id=user.id, ip=ip, user_agent=ua,
+    )
     db.commit()
     return TokenPair(access_token=access, refresh_token=refresh)
 
 
 @router.post("/refresh", response_model=TokenPair)
-def refresh(payload: RefreshRequest, db: Session = Depends(get_db)) -> TokenPair:
+def refresh(payload: RefreshRequest, request: Request, db: Session = Depends(get_db)) -> TokenPair:
+    ip, ua = _ip_ua(request)
     try:
         access, new_refresh = auth_service.rotate_refresh(db, payload.refresh_token)
     except auth_service.AuthError:
+        audit_service.log(db, action="auth.refresh.fail", ip=ip, user_agent=ua)
+        db.commit()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token non valido"
         )
+    audit_service.log(db, action="auth.refresh", ip=ip, user_agent=ua)
     db.commit()
     return TokenPair(access_token=access, refresh_token=new_refresh)
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
-def logout(payload: RefreshRequest, db: Session = Depends(get_db)) -> Response:
+def logout(payload: RefreshRequest, request: Request, db: Session = Depends(get_db)) -> Response:
+    ip, ua = _ip_ua(request)
     auth_service.revoke_refresh(db, payload.refresh_token)
+    audit_service.log(db, action="auth.logout", ip=ip, user_agent=ua)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
